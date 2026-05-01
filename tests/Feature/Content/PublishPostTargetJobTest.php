@@ -18,11 +18,15 @@ use App\Models\Event;
 use App\Models\Platform;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Services\SocialPlatforms\Contracts\SocialPlatformPublisher;
+use App\Services\SocialPlatforms\PlatformPublishManager;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
+use Mockery;
+use RuntimeException;
 use Tests\TestCase;
 
 class PublishPostTargetJobTest extends TestCase
@@ -264,6 +268,140 @@ class PublishPostTargetJobTest extends TestCase
         $this->assertDatabaseHas('events', [
             'name' => PostPartiallyPublished::NAME,
             'workspace_uuid' => $workspace->uuid,
+        ]);
+    }
+
+    public function test_post_status_is_not_finalized_until_all_targets_are_terminal(): void
+    {
+        [$workspace, $owner] = $this->workspaceAndOwner();
+        $platform = Platform::query()->where('slug', 'facebook')->firstOrFail();
+        $channelA = $this->makeChannel($workspace, $owner, $platform);
+        $channelB = $this->makeChannel($workspace, $owner, $platform);
+
+        $post = Post::factory()->create([
+            'workspace_id' => $workspace->id,
+            'created_by' => $owner->id,
+            'status' => PostStatus::Scheduled,
+        ]);
+
+        $successfulTarget = PostTarget::factory()->create([
+            'post_id' => $post->id,
+            'channel_id' => $channelA->id,
+            'status' => PostTargetStatus::Pending,
+        ]);
+
+        $pendingTarget = PostTarget::factory()->create([
+            'post_id' => $post->id,
+            'channel_id' => $channelB->id,
+            'status' => PostTargetStatus::Pending,
+        ]);
+
+        Http::fake(function (Request $request) use ($channelA) {
+            if (str_contains($request->url(), '/'.$channelA->platform_account_id.'/feed')) {
+                return Http::response([
+                    'id' => 'page-success-post-2',
+                ], 200);
+            }
+
+            return Http::response([], 500);
+        });
+
+        PublishPostTargetJob::dispatchSync($successfulTarget->id);
+
+        $post->refresh();
+        $successfulTarget->refresh();
+        $pendingTarget->refresh();
+
+        $this->assertSame(PostTargetStatus::Completed, $successfulTarget->status);
+        $this->assertSame(PostTargetStatus::Pending, $pendingTarget->status);
+        $this->assertSame(PostStatus::Scheduled, $post->status);
+    }
+
+    public function test_job_marks_attempt_failed_when_publisher_throws_exception(): void
+    {
+        [$workspace, $owner] = $this->workspaceAndOwner();
+        $platform = Platform::query()->where('slug', 'facebook')->firstOrFail();
+        $channel = $this->makeChannel($workspace, $owner, $platform);
+
+        $post = Post::factory()->create([
+            'workspace_id' => $workspace->id,
+            'created_by' => $owner->id,
+            'status' => PostStatus::Scheduled,
+        ]);
+
+        $target = PostTarget::factory()->create([
+            'post_id' => $post->id,
+            'channel_id' => $channel->id,
+            'status' => PostTargetStatus::Pending,
+        ]);
+
+        $publisher = Mockery::mock(SocialPlatformPublisher::class);
+        $publisher
+            ->shouldReceive('publish')
+            ->once()
+            ->andThrow(new RuntimeException('Publisher crashed.'));
+
+        $publishManager = Mockery::mock(PlatformPublishManager::class);
+        $publishManager
+            ->shouldReceive('publisher')
+            ->once()
+            ->with('facebook')
+            ->andReturn($publisher);
+
+        $this->app->instance(PlatformPublishManager::class, $publishManager);
+
+        try {
+            PublishPostTargetJob::dispatchSync($target->id);
+            $this->fail('Expected RuntimeException was not thrown.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Publisher crashed.', $exception->getMessage());
+        }
+
+        $target->refresh();
+        $post->refresh();
+
+        $this->assertSame(PostTargetStatus::Failed, $target->status);
+        $this->assertSame(1, $target->attempt_count);
+        $this->assertSame(PostStatus::Failed, $post->status);
+
+        $this->assertDatabaseHas('post_target_publish_attempts', [
+            'post_target_id' => $target->id,
+            'attempt_number' => 1,
+            'status' => 'failed',
+            'error_code' => 'UNEXPECTED_PUBLISH_EXCEPTION',
+            'error_message' => 'Publisher crashed.',
+        ]);
+    }
+
+    public function test_job_skips_when_target_is_already_processing(): void
+    {
+        [$workspace, $owner] = $this->workspaceAndOwner();
+        $platform = Platform::query()->where('slug', 'facebook')->firstOrFail();
+        $channel = $this->makeChannel($workspace, $owner, $platform);
+
+        $post = Post::factory()->create([
+            'workspace_id' => $workspace->id,
+            'created_by' => $owner->id,
+            'status' => PostStatus::Scheduled,
+        ]);
+
+        $target = PostTarget::factory()->create([
+            'post_id' => $post->id,
+            'channel_id' => $channel->id,
+            'status' => PostTargetStatus::Processing,
+            'attempt_count' => 1,
+        ]);
+
+        PublishPostTargetJob::dispatchSync($target->id);
+
+        $target->refresh();
+
+        $this->assertSame(PostTargetStatus::Processing, $target->status);
+        $this->assertSame(1, $target->attempt_count);
+
+        $this->assertDatabaseMissing('post_target_publish_attempts', [
+            'post_target_id' => $target->id,
+            'attempt_number' => 2,
         ]);
     }
 

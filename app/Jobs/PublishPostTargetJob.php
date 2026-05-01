@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Domain\Content\Enums\PostTargetStatus;
 use App\Domain\Content\Models\PostTarget;
 use App\Domain\Content\Services\PostTargetPublishingService;
-use App\Services\SocialPlatforms\Exceptions\RecoverablePublishException;
 use App\Services\SocialPlatforms\PlatformPublishManager;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -42,20 +41,18 @@ class PublishPostTargetJob implements ShouldQueue
 
         $platformSlug = $target->channel->platform->slug;
         $publisher = $publishManager->publisher($platformSlug);
-        $jobUuid = is_object($this->job) && method_exists($this->job, 'uuid')
-            ? $this->job->uuid()
-            : null;
-        $attempt = $publishingService->beginAttempt($target, $jobUuid);
-        $result = $publisher->publish($target->post, $target);
-        $publishingService->completeAttempt($target, $attempt, $result);
-
-        if (! $result->successful && $result->recoverable) {
-            throw new RecoverablePublishException($result->errorMessage ?? 'Recoverable publish failure.');
-        }
+        $publishingService->publishTarget($target, $publisher, $this->resolveJobUuid());
     }
 
     public function failed(?Throwable $exception): void
     {
         // Attempts and failure state are persisted in the publishing service.
+    }
+
+    private function resolveJobUuid(): ?string
+    {
+        return is_object($this->job) && method_exists($this->job, 'uuid')
+            ? $this->job->uuid()
+            : null;
     }
 }
