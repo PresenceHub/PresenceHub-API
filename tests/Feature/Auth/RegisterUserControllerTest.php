@@ -30,6 +30,14 @@ class RegisterUserControllerTest extends TestCase
                     'name',
                     'email',
                     'role' => ['uuid', 'slug', 'name', 'description'],
+                    'workspaces' => [
+                        '*' => [
+                            'uuid',
+                            'name',
+                            'createdAt',
+                            'updatedAt',
+                        ],
+                    ],
                     'createdAt',
                     'updatedAt',
                 ],
@@ -41,8 +49,7 @@ class RegisterUserControllerTest extends TestCase
         $this->assertTrue(Str::isUuid($response->json('user.uuid')));
         $this->assertSame($user->uuid, $response->json('user.uuid'));
         $this->assertSame('customer', $response->json('user.role.slug'));
-
-        $response->assertJsonMissingPath('user.workspaces');
+   
 
         $this->assertSame($creatorRole->uuid, $user->role->uuid);
 

@@ -1,3 +1,5 @@
+name: PresenceHub-API
+
 # `api` + `postgres` + `nginx` share the `backend` bridge (no static IPs). Use DB_HOST=postgres from the api container.
 # External HTTP(S) is served by `nginx` on ports 80/443; `api` listens on 8000 inside the network only.
 # If you still see errors mentioning 172.28.x.x or `db`, remove old networks: `docker compose down` then prune
