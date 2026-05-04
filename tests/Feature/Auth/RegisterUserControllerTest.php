@@ -49,7 +49,6 @@ class RegisterUserControllerTest extends TestCase
         $this->assertTrue(Str::isUuid($response->json('user.uuid')));
         $this->assertSame($user->uuid, $response->json('user.uuid'));
         $this->assertSame('customer', $response->json('user.role.slug'));
-   
 
         $this->assertSame($creatorRole->uuid, $user->role->uuid);
 

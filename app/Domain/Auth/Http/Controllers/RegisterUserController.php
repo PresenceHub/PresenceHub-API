@@ -14,7 +14,7 @@ class RegisterUserController
     public function __invoke(RegisterUserRequest $request): JsonResponse
     {
         $user = $this->authService->registerUser($request->validated());
-        
+
         $user->loadMissing('role', 'currentWorkspace', 'workspaces');
         $token = $user->createToken('api')->plainTextToken;
 
