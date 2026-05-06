@@ -4,8 +4,23 @@ set -e
 
 echo "pre-commit: $(date) $PWD" >> .git/hooks/pre-commit.log
 
-echo "Formatting code..."
-docker-compose exec -T api composer format
+# Staged PHP File Changes
+STAGED_PHP_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.php$' || true)
+
+if [ -z "$STAGED_PHP_FILES" ]; then
+  echo "No staged PHP files to format."
+else
+  echo "Formatting code..."
+  
+  # Format staged PHP files
+  docker-compose exec -T api composer format
+  
+  echo "Re-staging formatted files..."
+  # Re-add only files that were already staged
+  printf '%s\n' "$STAGED_PHP_FILES" | while IFS= read -r file; do
+    [ -n "$file" ] && git add -- "$file"
+  done
+fi
 
 echo "Analyzing code..."
 docker-compose exec -T api composer analyse

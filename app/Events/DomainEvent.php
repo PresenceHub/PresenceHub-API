@@ -27,7 +27,10 @@ abstract class DomainEvent
     }
 
     /**
-     * Stable, dot-namespaced identifier (e.g. {@see UserRegistered::$NAME}).
+     * Stable identifier.
+     *
+     * @see UserRegistered
+     * Uses constant: UserRegistered::NAME
      */
     abstract public function getName(): string;
 
