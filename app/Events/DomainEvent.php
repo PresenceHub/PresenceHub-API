@@ -18,6 +18,7 @@ abstract class DomainEvent
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public array $context;
+
     public readonly CarbonImmutable $occurredAt;
 
     public function __construct()
