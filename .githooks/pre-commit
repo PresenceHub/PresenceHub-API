@@ -2,6 +2,8 @@
 # Run quality checks inside the Compose `api` service (see docs/DEVELOPMENT.md).
 set -e
 
+echo "pre-commit: $(date) $PWD" >> .git/hooks/pre-commit.log
+
 echo "Formatting code..."
 docker-compose exec -T api composer format
 
