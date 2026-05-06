@@ -2,7 +2,10 @@
 
 namespace Tests\Feature\Content;
 
+use App\Domain\Content\Events\ChannelConnected;
+use App\Domain\Content\Events\ChannelDisconnected;
 use App\Domain\Content\Models\Channel;
+use App\Models\Event;
 use App\Models\Platform;
 use App\Models\User;
 use App\Models\Workspace;
@@ -91,6 +94,12 @@ class ChannelControllerTest extends TestCase
             'handle' => 'new_handle',
             'platform_account_id' => 'acct-new-001',
         ]);
+
+        $this->assertDatabaseHas('events', [
+            'name' => ChannelConnected::NAME,
+            'user_uuid' => $owner->uuid,
+            'workspace_uuid' => $workspace->uuid,
+        ]);
     }
 
     public function test_store_rejects_unknown_platform_slug(): void
@@ -136,6 +145,15 @@ class ChannelControllerTest extends TestCase
             ->assertNoContent();
 
         $this->assertSoftDeleted('channels', ['id' => $channel->id]);
+
+        $event = Event::query()
+            ->where('name', ChannelDisconnected::NAME)
+            ->where('user_uuid', $owner->uuid)
+            ->where('workspace_uuid', $workspace->uuid)
+            ->firstOrFail();
+
+        $this->assertSame($channel->uuid, $event->properties['channel_uuid']);
+        $this->assertSame('instagram', $event->properties['platform_slug']);
     }
 
     public function test_non_member_cannot_delete_channel(): void
