@@ -4,11 +4,17 @@ namespace Tests\Feature\Content;
 
 use App\Domain\Content\Enums\PostStatus;
 use App\Domain\Content\Enums\PostTargetStatus;
+use App\Domain\Content\Events\PostFailed;
+use App\Domain\Content\Events\PostPartiallyPublished;
+use App\Domain\Content\Events\PostPublished;
+use App\Domain\Content\Events\PostTargetPublishFailed;
+use App\Domain\Content\Events\PostTargetPublishSucceeded;
 use App\Domain\Content\Models\Channel;
 use App\Domain\Content\Models\Post;
 use App\Domain\Content\Models\PostMedia;
 use App\Domain\Content\Models\PostTarget;
 use App\Jobs\PublishPostTargetJob;
+use App\Models\Event;
 use App\Models\Platform;
 use App\Models\User;
 use App\Models\Workspace;
@@ -110,6 +116,20 @@ class PublishPostTargetJobTest extends TestCase
             'attempt_number' => 1,
             'status' => 'completed',
         ]);
+
+        $event = Event::query()
+            ->where('name', PostTargetPublishSucceeded::NAME)
+            ->where('workspace_uuid', $workspace->uuid)
+            ->firstOrFail();
+
+        $this->assertSame($post->uuid, $event->properties['post_uuid']);
+        $this->assertSame($target->uuid, $event->properties['target_uuid']);
+        $this->assertSame($channel->uuid, $event->properties['channel_uuid']);
+
+        $this->assertDatabaseHas('events', [
+            'name' => PostPublished::NAME,
+            'workspace_uuid' => $workspace->uuid,
+        ]);
     }
 
     public function test_job_records_failure_and_sets_post_as_failed_when_all_targets_fail(): void
@@ -157,6 +177,21 @@ class PublishPostTargetJobTest extends TestCase
             'attempt_number' => 1,
             'status' => 'failed',
             'error_code' => 'FACEBOOK_HTTP_400',
+        ]);
+
+        $event = Event::query()
+            ->where('name', PostTargetPublishFailed::NAME)
+            ->where('workspace_uuid', $workspace->uuid)
+            ->firstOrFail();
+
+        $this->assertSame($post->uuid, $event->properties['post_uuid']);
+        $this->assertSame($target->uuid, $event->properties['target_uuid']);
+        $this->assertSame('FACEBOOK_HTTP_400', $event->properties['error_code']);
+        $this->assertFalse($event->properties['recoverable']);
+
+        $this->assertDatabaseHas('events', [
+            'name' => PostFailed::NAME,
+            'workspace_uuid' => $workspace->uuid,
         ]);
     }
 
@@ -224,6 +259,11 @@ class PublishPostTargetJobTest extends TestCase
             'post_target_id' => $failedTarget->id,
             'attempt_number' => 1,
             'status' => 'failed',
+        ]);
+
+        $this->assertDatabaseHas('events', [
+            'name' => PostPartiallyPublished::NAME,
+            'workspace_uuid' => $workspace->uuid,
         ]);
     }
 

@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property PostType $type
  * @property PostStatus $status
  * @property-read Workspace $workspace
+ * @property-read User $creator
  * @property-read PostMedia[] $media
  */
 #[UseFactory(PostFactory::class)]
