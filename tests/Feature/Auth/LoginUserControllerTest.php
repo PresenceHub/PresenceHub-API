@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Domain\Auth\Events\UserLoggedIn;
+use App\Models\Event;
 use App\Models\User;
 use App\Models\Workspace;
 use Database\Factories\UserFactory;
@@ -64,6 +66,50 @@ class LoginUserControllerTest extends TestCase
             'tokenable_id' => $user->id,
             'name' => 'api',
         ]);
+    }
+
+    public function test_login_records_user_logged_in_event(): void
+    {
+        $user = UserFactory::new()->create([
+            'email' => 'jane@example.com',
+            'password' => 'password1234',
+        ]);
+
+        $workspace = Workspace::factory()->create([
+            'owner_id' => $user->id,
+        ]);
+
+        $this
+            ->postJson('/api/v1/auth/login', [
+                'email' => 'jane@example.com',
+                'password' => 'password1234',
+            ])
+            ->assertOk();
+
+        $event = Event::query()
+            ->where('name', UserLoggedIn::NAME)
+            ->where('user_uuid', $user->uuid)
+            ->firstOrFail();
+
+        $this->assertSame($workspace->uuid, $event->workspace_uuid);
+        $this->assertSame('jane@example.com', $event->properties['email']);
+    }
+
+    public function test_failed_login_does_not_record_event(): void
+    {
+        UserFactory::new()->create([
+            'email' => 'jane@example.com',
+            'password' => 'password1234',
+        ]);
+
+        $this
+            ->postJson('/api/v1/auth/login', [
+                'email' => 'jane@example.com',
+                'password' => 'wrong-password',
+            ])
+            ->assertUnprocessable();
+
+        $this->assertSame(0, Event::query()->where('name', UserLoggedIn::NAME)->count());
     }
 
     public function test_login_normalizes_email(): void
