@@ -40,7 +40,7 @@ class ChannelController
     // TODO: Review this controller action
     public function disconnect(DisconnectChannelRequest $request, Channel $channel): Response
     {
-        $this->channelService->delete($request->workspace(), $channel);
+        $this->channelService->delete($request->workspace(), $request->user(), $channel);
 
         return response()->noContent();
     }
