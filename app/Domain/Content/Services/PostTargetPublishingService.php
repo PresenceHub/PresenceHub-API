@@ -5,12 +5,18 @@ namespace App\Domain\Content\Services;
 use App\Domain\Content\Enums\PostStatus;
 use App\Domain\Content\Enums\PostTargetPublishAttemptStatus;
 use App\Domain\Content\Enums\PostTargetStatus;
+use App\Domain\Content\Events\PostFailed;
+use App\Domain\Content\Events\PostPartiallyPublished;
+use App\Domain\Content\Events\PostPublished;
+use App\Domain\Content\Events\PostTargetPublishFailed;
+use App\Domain\Content\Events\PostTargetPublishSucceeded;
 use App\Domain\Content\Models\Post;
 use App\Domain\Content\Models\PostTarget;
 use App\Domain\Content\Models\PostTargetPublishAttempt;
 use App\Services\SocialPlatforms\Data\PlatformPublishResponse;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 
 class PostTargetPublishingService
 {
@@ -73,11 +79,25 @@ class PostTargetPublishingService
                 'external_post_id' => $result->externalPostId,
             ]);
 
-            $this->syncPostStatus($lockedTarget->post);
+            $postStatus = $this->syncPostStatus($lockedTarget->post);
+
+            $lockedTarget->loadMissing(['post.workspace', 'post.creator', 'channel.platform']);
+
+            if ($result->successful) {
+                Event::dispatch(new PostTargetPublishSucceeded($lockedTarget->post, $lockedTarget, $lockedAttempt));
+            } else {
+                Event::dispatch(new PostTargetPublishFailed($lockedTarget->post, $lockedTarget, $lockedAttempt, $result->recoverable));
+            }
+
+            $postStatus && Event::dispatch(match ($postStatus) {
+                PostStatus::Published => new PostPublished($lockedTarget->post),
+                PostStatus::PartiallyPublished => new PostPartiallyPublished($lockedTarget->post),
+                PostStatus::Failed => new PostFailed($lockedTarget->post),
+            });
         });
     }
 
-    public function syncPostStatus(Post $post): void
+    public function syncPostStatus(Post $post): ?PostStatus
     {
         $statuses = $post->targets()
             ->pluck('status')
@@ -96,26 +116,41 @@ class PostTargetPublishingService
             ->all();
 
         if ($statuses === []) {
-            return;
+            return null;
         }
 
         $hasCompleted = in_array(PostTargetStatus::Completed->value, $statuses, true);
         $hasFailed = in_array(PostTargetStatus::Failed->value, $statuses, true);
+        $hasPendingOrProcessing = in_array(PostTargetStatus::Pending->value, $statuses, true)
+            || in_array(PostTargetStatus::Processing->value, $statuses, true);
+
+        if ($hasPendingOrProcessing) {
+            return null;
+        }
 
         if ($hasCompleted && ! $hasFailed) {
-            $post->update(['status' => PostStatus::Published]);
-
-            return;
+            return $this->updatePostStatus($post, PostStatus::Published);
         }
 
         if (! $hasCompleted && $hasFailed) {
-            $post->update(['status' => PostStatus::Failed]);
-
-            return;
+            return $this->updatePostStatus($post, PostStatus::Failed);
         }
 
         if ($hasCompleted && $hasFailed) {
-            $post->update(['status' => PostStatus::PartiallyPublished]);
+            return $this->updatePostStatus($post, PostStatus::PartiallyPublished);
         }
+
+        return null;
+    }
+
+    private function updatePostStatus(Post $post, PostStatus $nextStatus): ?PostStatus
+    {
+        if ($post->status === $nextStatus) {
+            return null;
+        }
+
+        $post->update(['status' => $nextStatus]);
+
+        return $nextStatus;
     }
 }

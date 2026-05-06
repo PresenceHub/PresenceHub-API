@@ -2,10 +2,12 @@
 
 namespace App\Domain\Auth\Http\Controllers;
 
+use App\Domain\Auth\Events\UserLoggedIn;
 use App\Domain\Auth\Http\Requests\LoginUserRequest;
 use App\Domain\Auth\Http\Resources\UserResource;
 use App\Domain\Auth\Services\AuthService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Event;
 
 class LoginUserController
 {
@@ -23,6 +25,8 @@ class LoginUserController
 
         $user->loadMissing('role', 'currentWorkspace', 'workspaces');
         $token = $user->createToken('api')->plainTextToken;
+
+        Event::dispatch(new UserLoggedIn($user));
 
         return response()->json([
             'user' => UserResource::make($user),
