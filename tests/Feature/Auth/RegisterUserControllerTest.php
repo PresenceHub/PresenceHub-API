@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Domain\Auth\Events\UserRegistered;
 use App\Enums\Role as RoleSlug;
+use App\Models\Event as EventRecord;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -106,6 +108,45 @@ class RegisterUserControllerTest extends TestCase
                 ],
             ])
             ->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_registration_records_user_registered_event(): void
+    {
+        $this
+            ->postJson('/api/v1/auth/register', [
+                'name' => 'Jane Doe',
+                'email' => 'jane@example.com',
+                'password' => 'password1234',
+            ])
+            ->assertCreated();
+
+        $user = User::query()->where('email', 'jane@example.com')->firstOrFail();
+        $workspace = $user->ownedWorkspaces()->firstOrFail();
+
+        $event = EventRecord::query()
+            ->where('name', UserRegistered::NAME)
+            ->where('user_uuid', $user->uuid)
+            ->firstOrFail();
+
+        $this->assertSame($workspace->uuid, $event->workspace_uuid);
+        $this->assertSame('jane@example.com', $event->properties['email']);
+        $this->assertSame('Jane Doe', $event->properties['name']);
+        $this->assertSame('customer', $event->properties['role_slug']);
+    }
+
+    public function test_failed_registration_does_not_record_event(): void
+    {
+        User::factory()->create(['email' => 'jane@example.com']);
+
+        $this
+            ->postJson('/api/v1/auth/register', [
+                'name' => 'Jane Doe',
+                'email' => 'jane@example.com',
+                'password' => 'password1234',
+            ])
+            ->assertUnprocessable();
+
+        $this->assertSame(0, EventRecord::query()->where('name', UserRegistered::NAME)->count());
     }
 
     public function test_registration_validation_returns_json_when_body_is_json_without_json_accept_header(): void

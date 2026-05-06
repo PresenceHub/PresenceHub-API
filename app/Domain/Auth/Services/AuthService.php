@@ -4,6 +4,7 @@ namespace App\Domain\Auth\Services;
 
 use App\Domain\Auth\DTOs\LoginUserDataDTO;
 use App\Domain\Auth\DTOs\RegisterUserDataDTO;
+use App\Domain\Auth\Events\UserRegistered;
 use App\Enums\Role as RoleSlug;
 use App\Enums\WorkspaceMemberRole;
 use App\Models\Role;
@@ -11,6 +12,7 @@ use App\Models\User;
 use App\Models\Workspace;
 use Exception;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Event;
 
 class AuthService
 {
@@ -41,6 +43,8 @@ class AuthService
         ]);
 
         $workspace->members()->attach($user, ['role' => WorkspaceMemberRole::Owner]);
+
+        Event::dispatch(new UserRegistered($user->loadMissing('role'), $workspace));
 
         return $user;
     }
