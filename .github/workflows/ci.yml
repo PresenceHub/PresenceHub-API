@@ -127,13 +127,23 @@ jobs:
             const staticAnalysisStatus = describe(staticAnalysisOutcome);
 
             const prHeadSha = context.payload.pull_request?.head?.sha;
-            core.info(`[agent-debug:H1] checks comment sha comparison context.sha=${context.sha} pr.head.sha=${prHeadSha ?? 'null'} event=${context.eventName}`);
+            core.info(`[agent-debug:H1] checks comment sha comparison context.sha=${context.sha} eventPrHeadSha=${prHeadSha ?? 'null'} event=${context.eventName}`);
             // #region agent log
-            fetch('http://127.0.0.1:7775/ingest/ac937827-e231-4236-bcb4-617985a854ed',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'746f03'},body:JSON.stringify({sessionId:'746f03',runId:'pre-fix',hypothesisId:'H1',location:'.github/workflows/ci.yml:checks-comment',message:'API checks comment SHA comparison',data:{eventName:context.eventName,contextSha:context.sha,prHeadSha,isStale:!!(prHeadSha&&prHeadSha!==context.sha)},timestamp:Date.now()})}).catch(()=>{});
+            fetch('http://127.0.0.1:7775/ingest/ac937827-e231-4236-bcb4-617985a854ed',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'746f03'},body:JSON.stringify({sessionId:'746f03',runId:'post-fix',hypothesisId:'H1',location:'.github/workflows/ci.yml:checks-comment',message:'API checks comment initial SHA comparison',data:{eventName:context.eventName,contextSha:context.sha,eventPrHeadSha:prHeadSha},timestamp:Date.now()})}).catch(()=>{});
             // #endregion
-            if (prHeadSha && prHeadSha !== context.sha) {
-              core.info(`Skipping stale checks summary comment update for ${context.sha}; latest PR head is ${prHeadSha}.`);
-              core.info('[agent-debug:H1] checks comment skipped as stale');
+            const livePull = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            const livePrHeadSha = livePull.data.head.sha;
+            core.info(`[agent-debug:H1] checks comment live head sha=${livePrHeadSha}`);
+            // #region agent log
+            fetch('http://127.0.0.1:7775/ingest/ac937827-e231-4236-bcb4-617985a854ed',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'746f03'},body:JSON.stringify({sessionId:'746f03',runId:'post-fix',hypothesisId:'H1',location:'.github/workflows/ci.yml:checks-comment',message:'API checks comment live SHA comparison',data:{eventPrHeadSha:prHeadSha,livePrHeadSha,isStale:!!(prHeadSha&&livePrHeadSha&&prHeadSha!==livePrHeadSha)},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+            if (prHeadSha && livePrHeadSha && prHeadSha !== livePrHeadSha) {
+              core.info(`Skipping stale checks summary comment update for event head ${prHeadSha}; latest PR head is ${livePrHeadSha}.`);
+              core.info('[agent-debug:H1] checks comment skipped as stale using live PR head');
               return;
             }
 
@@ -239,13 +249,23 @@ jobs:
             const coverage = '${{ steps.coverage.outputs.coverage_percentage }}';
 
             const prHeadSha = context.payload.pull_request?.head?.sha;
-            core.info(`[agent-debug:H1] coverage comment sha comparison context.sha=${context.sha} pr.head.sha=${prHeadSha ?? 'null'} event=${context.eventName}`);
+            core.info(`[agent-debug:H1] coverage comment sha comparison context.sha=${context.sha} eventPrHeadSha=${prHeadSha ?? 'null'} event=${context.eventName}`);
             // #region agent log
-            fetch('http://127.0.0.1:7775/ingest/ac937827-e231-4236-bcb4-617985a854ed',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'746f03'},body:JSON.stringify({sessionId:'746f03',runId:'pre-fix',hypothesisId:'H1',location:'.github/workflows/ci.yml:coverage-comment',message:'API coverage comment SHA comparison',data:{eventName:context.eventName,contextSha:context.sha,prHeadSha,isStale:!!(prHeadSha&&prHeadSha!==context.sha)},timestamp:Date.now()})}).catch(()=>{});
+            fetch('http://127.0.0.1:7775/ingest/ac937827-e231-4236-bcb4-617985a854ed',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'746f03'},body:JSON.stringify({sessionId:'746f03',runId:'post-fix',hypothesisId:'H1',location:'.github/workflows/ci.yml:coverage-comment',message:'API coverage comment initial SHA comparison',data:{eventName:context.eventName,contextSha:context.sha,eventPrHeadSha:prHeadSha},timestamp:Date.now()})}).catch(()=>{});
             // #endregion
-            if (prHeadSha && prHeadSha !== context.sha) {
-              core.info(`Skipping stale coverage comment update for ${context.sha}; latest PR head is ${prHeadSha}.`);
-              core.info('[agent-debug:H1] coverage comment skipped as stale');
+            const livePull = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            const livePrHeadSha = livePull.data.head.sha;
+            core.info(`[agent-debug:H1] coverage comment live head sha=${livePrHeadSha}`);
+            // #region agent log
+            fetch('http://127.0.0.1:7775/ingest/ac937827-e231-4236-bcb4-617985a854ed',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'746f03'},body:JSON.stringify({sessionId:'746f03',runId:'post-fix',hypothesisId:'H1',location:'.github/workflows/ci.yml:coverage-comment',message:'API coverage comment live SHA comparison',data:{eventPrHeadSha:prHeadSha,livePrHeadSha,isStale:!!(prHeadSha&&livePrHeadSha&&prHeadSha!==livePrHeadSha)},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+            if (prHeadSha && livePrHeadSha && prHeadSha !== livePrHeadSha) {
+              core.info(`Skipping stale coverage comment update for event head ${prHeadSha}; latest PR head is ${livePrHeadSha}.`);
+              core.info('[agent-debug:H1] coverage comment skipped as stale using live PR head');
               return;
             }
 
