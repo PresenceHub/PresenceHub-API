@@ -161,7 +161,6 @@ jobs:
               per_page: 100,
             });
             const existing = comments.find((comment) => comment.body && comment.body.includes(marker));
-            core.info(`[agent-debug:H4] checks comment marker lookup hasExisting=${Boolean(existing)}`);
 
             if (existing) {
               await github.rest.issues.updateComment({
@@ -276,7 +275,6 @@ jobs:
               per_page: 100,
             });
             const existing = comments.find((comment) => comment.body && comment.body.includes(marker));
-            core.info(`[agent-debug:H4] coverage comment marker lookup hasExisting=${Boolean(existing)}`);
 
             if (existing) {
               await github.rest.issues.updateComment({
