@@ -128,8 +128,13 @@ jobs:
             const staticAnalysisStatus = describe(staticAnalysisOutcome);
 
             const prHeadSha = context.payload.pull_request?.head?.sha;
+            core.info(`[agent-debug:H1] checks comment sha comparison context.sha=${context.sha} pr.head.sha=${prHeadSha ?? 'null'} event=${context.eventName}`);
+            // #region agent log
+            fetch('http://127.0.0.1:7775/ingest/ac937827-e231-4236-bcb4-617985a854ed',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'746f03'},body:JSON.stringify({sessionId:'746f03',runId:'pre-fix',hypothesisId:'H1',location:'.github/workflows/ci.yml:checks-comment',message:'API checks comment SHA comparison',data:{eventName:context.eventName,contextSha:context.sha,prHeadSha,isStale:!!(prHeadSha&&prHeadSha!==context.sha)},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
             if (prHeadSha && prHeadSha !== context.sha) {
               core.info(`Skipping stale checks summary comment update for ${context.sha}; latest PR head is ${prHeadSha}.`);
+              core.info('[agent-debug:H1] checks comment skipped as stale');
               return;
             }
 
@@ -156,6 +161,7 @@ jobs:
               per_page: 100,
             });
             const existing = comments.find((comment) => comment.body && comment.body.includes(marker));
+            core.info(`[agent-debug:H4] checks comment marker lookup hasExisting=${Boolean(existing)}`);
 
             if (existing) {
               await github.rest.issues.updateComment({
@@ -234,8 +240,13 @@ jobs:
             const coverage = '${{ steps.coverage.outputs.coverage_percentage }}';
 
             const prHeadSha = context.payload.pull_request?.head?.sha;
+            core.info(`[agent-debug:H1] coverage comment sha comparison context.sha=${context.sha} pr.head.sha=${prHeadSha ?? 'null'} event=${context.eventName}`);
+            // #region agent log
+            fetch('http://127.0.0.1:7775/ingest/ac937827-e231-4236-bcb4-617985a854ed',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'746f03'},body:JSON.stringify({sessionId:'746f03',runId:'pre-fix',hypothesisId:'H1',location:'.github/workflows/ci.yml:coverage-comment',message:'API coverage comment SHA comparison',data:{eventName:context.eventName,contextSha:context.sha,prHeadSha,isStale:!!(prHeadSha&&prHeadSha!==context.sha)},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
             if (prHeadSha && prHeadSha !== context.sha) {
               core.info(`Skipping stale coverage comment update for ${context.sha}; latest PR head is ${prHeadSha}.`);
+              core.info('[agent-debug:H1] coverage comment skipped as stale');
               return;
             }
 
@@ -248,6 +259,7 @@ jobs:
                 : coverageValue < threshold
                   ? `- Total coverage: ⚠️ **${coverage}%** (below threshold)`
                   : `- Total coverage: ✅ **${coverage}%**`;
+            core.info(`[agent-debug:H2] coverage outputs raw=${coverage || 'empty'} numeric=${Number.isNaN(coverageValue) ? 'NaN' : coverageValue}`);
 
             const body = [
               marker,
@@ -265,6 +277,7 @@ jobs:
               per_page: 100,
             });
             const existing = comments.find((comment) => comment.body && comment.body.includes(marker));
+            core.info(`[agent-debug:H4] coverage comment marker lookup hasExisting=${Boolean(existing)}`);
 
             if (existing) {
               await github.rest.issues.updateComment({
@@ -281,135 +294,3 @@ jobs:
                 body,
               });
             }
-
-  # ---------------------------------------------------------------------------
-  # Legacy layout (parallel jobs: Quality, Lint, PHPStan each on own runner).
-  # Kept for reference; superseded by `checks` + `tests` above.
-  # ---------------------------------------------------------------------------
-  #   quality:
-  #     name: Quality
-  #     runs-on: ubuntu-latest
-  #
-  #     steps:
-  #       - name: Checkout code
-  #         uses: actions/checkout@v4
-  #
-  #       - name: Setup PHP
-  #         uses: shivammathur/setup-php@v2
-  #         with:
-  #           php-version: '8.3'
-  #           coverage: none
-  #
-  #       - name: Validate Composer configuration
-  #         run: composer validate --strict
-  #
-  #   lint:
-  #     name: Lint
-  #     runs-on: ubuntu-latest
-  #
-  #     steps:
-  #       - name: Checkout code
-  #         uses: actions/checkout@v4
-  #
-  #       - name: Setup PHP
-  #         uses: shivammathur/setup-php@v2
-  #         with:
-  #           php-version: '8.3'
-  #           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
-  #           coverage: none
-  #
-  #       - name: Get Composer cache directory
-  #         id: composer-cache
-  #         run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-  #
-  #       - name: Cache Composer dependencies
-  #         uses: actions/cache@v4
-  #         with:
-  #           path: ${{ steps.composer-cache.outputs.dir }}
-  #           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-  #           restore-keys: |
-  #             ${{ runner.os }}-composer-
-  #
-  #       - name: Install Composer dependencies
-  #         run: composer install --prefer-dist --no-interaction --no-progress
-  #
-  #       - name: Check code style with Pint
-  #         run: vendor/bin/pint --test
-  #
-  #   static_analysis:
-  #     name: PHPStan
-  #     runs-on: ubuntu-latest
-  #
-  #     steps:
-  #       - name: Checkout code
-  #         uses: actions/checkout@v4
-  #
-  #       - name: Setup PHP
-  #         uses: shivammathur/setup-php@v2
-  #         with:
-  #           php-version: '8.3'
-  #           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
-  #           coverage: none
-  #
-  #       - name: Get Composer cache directory
-  #         id: composer-cache
-  #         run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-  #
-  #       - name: Cache Composer dependencies
-  #         uses: actions/cache@v4
-  #         with:
-  #           path: ${{ steps.composer-cache.outputs.dir }}
-  #           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-  #           restore-keys: |
-  #             ${{ runner.os }}-composer-
-  #
-  #       - name: Install Composer dependencies
-  #         run: composer install --prefer-dist --no-interaction --no-progress
-  #
-  #       - name: Copy environment file
-  #         run: cp .env.example .env
-  #
-  #       - name: Generate app key
-  #         run: php artisan key:generate
-  #
-  #       - name: Run PHPStan
-  #         run: composer run analyse --no-interaction
-  #
-  #   tests:
-  #     name: Tests
-  #     runs-on: ubuntu-latest
-  #
-  #     steps:
-  #       - name: Checkout code
-  #         uses: actions/checkout@v4
-  #
-  #       - name: Setup PHP
-  #         uses: shivammathur/setup-php@v2
-  #         with:
-  #           php-version: '8.3'
-  #           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
-  #           coverage: none
-  #
-  #       - name: Get Composer cache directory
-  #         id: composer-cache
-  #         run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-  #
-  #       - name: Cache Composer dependencies
-  #         uses: actions/cache@v4
-  #         with:
-  #           path: ${{ steps.composer-cache.outputs.dir }}
-  #           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-  #           restore-keys: |
-  #             ${{ runner.os }}-composer-
-  #
-  #       - name: Install Composer dependencies
-  #         run: composer install --prefer-dist --no-interaction --no-progress
-  #
-  #       - name: Copy environment file
-  #         run: cp .env.example .env
-  #
-  #       - name: Generate app key
-  #         run: php artisan key:generate
-  #
-  #       - name: Execute tests
-  #         run: php artisan test --compact
