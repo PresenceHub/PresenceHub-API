@@ -127,23 +127,14 @@ jobs:
             const staticAnalysisStatus = describe(staticAnalysisOutcome);
 
             const prHeadSha = context.payload.pull_request?.head?.sha;
-            core.info(`[agent-debug:H1] checks comment sha comparison context.sha=${context.sha} eventPrHeadSha=${prHeadSha ?? 'null'} event=${context.eventName}`);
-            // #region agent log
-            fetch('http://127.0.0.1:7775/ingest/ac937827-e231-4236-bcb4-617985a854ed',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'746f03'},body:JSON.stringify({sessionId:'746f03',runId:'post-fix',hypothesisId:'H1',location:'.github/workflows/ci.yml:checks-comment',message:'API checks comment initial SHA comparison',data:{eventName:context.eventName,contextSha:context.sha,eventPrHeadSha:prHeadSha},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
             const livePull = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.issue.number,
             });
             const livePrHeadSha = livePull.data.head.sha;
-            core.info(`[agent-debug:H1] checks comment live head sha=${livePrHeadSha}`);
-            // #region agent log
-            fetch('http://127.0.0.1:7775/ingest/ac937827-e231-4236-bcb4-617985a854ed',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'746f03'},body:JSON.stringify({sessionId:'746f03',runId:'post-fix',hypothesisId:'H1',location:'.github/workflows/ci.yml:checks-comment',message:'API checks comment live SHA comparison',data:{eventPrHeadSha:prHeadSha,livePrHeadSha,isStale:!!(prHeadSha&&livePrHeadSha&&prHeadSha!==livePrHeadSha)},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
             if (prHeadSha && livePrHeadSha && prHeadSha !== livePrHeadSha) {
               core.info(`Skipping stale checks summary comment update for event head ${prHeadSha}; latest PR head is ${livePrHeadSha}.`);
-              core.info('[agent-debug:H1] checks comment skipped as stale using live PR head');
               return;
             }
 
@@ -156,9 +147,9 @@ jobs:
             const body = [
               marker,
               '## Checks Summary',
-              `- Dependencies Security Check: ${composerStatus.icon} **${composerStatus.label}**`,
-              `- Lint: ${lintStatus.icon} **${lintStatus.label}**`,
-              `- Static Analysis: ${staticAnalysisStatus.icon} **${staticAnalysisMessage}**`,
+              `- ${composerStatus.icon} Dependencies Security Check: **${composerStatus.label}**`,
+              `- ${lintStatus.icon} Lint: **${lintStatus.label}**`,
+              `- ${staticAnalysisStatus.icon} Static Analysis: **${staticAnalysisMessage}**`,
             ].join('\n');
 
             const { owner, repo } = context.repo;
@@ -170,7 +161,6 @@ jobs:
               per_page: 100,
             });
             const existing = comments.find((comment) => comment.body && comment.body.includes(marker));
-            core.info(`[agent-debug:H4] checks comment marker lookup hasExisting=${Boolean(existing)}`);
 
             if (existing) {
               await github.rest.issues.updateComment({
@@ -249,42 +239,31 @@ jobs:
             const coverage = '${{ steps.coverage.outputs.coverage_percentage }}';
 
             const prHeadSha = context.payload.pull_request?.head?.sha;
-            core.info(`[agent-debug:H1] coverage comment sha comparison context.sha=${context.sha} eventPrHeadSha=${prHeadSha ?? 'null'} event=${context.eventName}`);
-            // #region agent log
-            fetch('http://127.0.0.1:7775/ingest/ac937827-e231-4236-bcb4-617985a854ed',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'746f03'},body:JSON.stringify({sessionId:'746f03',runId:'post-fix',hypothesisId:'H1',location:'.github/workflows/ci.yml:coverage-comment',message:'API coverage comment initial SHA comparison',data:{eventName:context.eventName,contextSha:context.sha,eventPrHeadSha:prHeadSha},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
             const livePull = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.issue.number,
             });
             const livePrHeadSha = livePull.data.head.sha;
-            core.info(`[agent-debug:H1] coverage comment live head sha=${livePrHeadSha}`);
-            // #region agent log
-            fetch('http://127.0.0.1:7775/ingest/ac937827-e231-4236-bcb4-617985a854ed',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'746f03'},body:JSON.stringify({sessionId:'746f03',runId:'post-fix',hypothesisId:'H1',location:'.github/workflows/ci.yml:coverage-comment',message:'API coverage comment live SHA comparison',data:{eventPrHeadSha:prHeadSha,livePrHeadSha,isStale:!!(prHeadSha&&livePrHeadSha&&prHeadSha!==livePrHeadSha)},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
             if (prHeadSha && livePrHeadSha && prHeadSha !== livePrHeadSha) {
               core.info(`Skipping stale coverage comment update for event head ${prHeadSha}; latest PR head is ${livePrHeadSha}.`);
-              core.info('[agent-debug:H1] coverage comment skipped as stale using live PR head');
               return;
             }
 
             const threshold = 80;
             const coverageValue = Number(coverage);
             const coverageLine = !coverage
-              ? '- Total coverage: **Unavailable** (coverage line not detected in test output).'
+              ? '- ❔ Total coverage: **Unavailable** (threshold: 80%, coverage line not detected in test output).'
               : Number.isNaN(coverageValue)
-                ? `- Total coverage: **${coverage}%**`
+                ? `- ❔ Total coverage: **${coverage}%** (threshold: 80%)`
                 : coverageValue < threshold
-                  ? `- Total coverage: ⚠️ **${coverage}%** (below threshold)`
-                  : `- Total coverage: ✅ **${coverage}%**`;
-            core.info(`[agent-debug:H2] coverage outputs raw=${coverage || 'empty'} numeric=${Number.isNaN(coverageValue) ? 'NaN' : coverageValue}`);
+                  ? `- ⚠️ Total coverage: **${coverage}%** (threshold: 80%, below threshold)`
+                  : `- ✅ Total coverage: **${coverage}%** (threshold: 80%)`;
 
             const body = [
               marker,
               '## Test Coverage',
               coverageLine,
-              '- Threshold: **80%**',
             ].join('\n');
 
             const { owner, repo } = context.repo;
@@ -296,7 +275,6 @@ jobs:
               per_page: 100,
             });
             const existing = comments.find((comment) => comment.body && comment.body.includes(marker));
-            core.info(`[agent-debug:H4] coverage comment marker lookup hasExisting=${Boolean(existing)}`);
 
             if (existing) {
               await github.rest.issues.updateComment({
