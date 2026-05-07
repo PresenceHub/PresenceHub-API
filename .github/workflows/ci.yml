@@ -127,6 +127,12 @@ jobs:
             const lintStatus = describe(lintOutcome);
             const staticAnalysisStatus = describe(staticAnalysisOutcome);
 
+            const prHeadSha = context.payload.pull_request?.head?.sha;
+            if (prHeadSha && prHeadSha !== context.sha) {
+              core.info(`Skipping stale checks summary comment update for ${context.sha}; latest PR head is ${prHeadSha}.`);
+              return;
+            }
+
             const staticAnalysisMessage = staticAnalysisOutcome === 'success'
               ? 'No issues detected'
               : staticAnalysisOutcome === 'failure'
@@ -220,18 +226,33 @@ jobs:
           echo "coverage_percentage=${coverage_percentage}" >> "$GITHUB_OUTPUT"
 
       - name: Comment coverage on pull request
-        if: github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const marker = '<!-- tests-coverage-comment -->';
             const coverage = '${{ steps.coverage.outputs.coverage_percentage }}';
+
+            const prHeadSha = context.payload.pull_request?.head?.sha;
+            if (prHeadSha && prHeadSha !== context.sha) {
+              core.info(`Skipping stale coverage comment update for ${context.sha}; latest PR head is ${prHeadSha}.`);
+              return;
+            }
+
+            const threshold = 80;
+            const coverageValue = Number(coverage);
+            const coverageLine = !coverage
+              ? '- Total coverage: **Unavailable** (coverage line not detected in test output).'
+              : Number.isNaN(coverageValue)
+                ? `- Total coverage: **${coverage}%**`
+                : coverageValue < threshold
+                  ? `- Total coverage: ⚠️ **${coverage}%** (below threshold)`
+                  : `- Total coverage: ✅ **${coverage}%**`;
+
             const body = [
               marker,
               '## Test Coverage',
-              coverage
-                ? `- Total coverage: **${coverage}%**`
-                : '- Total coverage: **Unavailable** (coverage line not detected in test output).',
+              coverageLine,
               '- Threshold: **80%**',
             ].join('\n');
 
