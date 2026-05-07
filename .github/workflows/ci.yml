@@ -3,8 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - master
-      - '*.x'
+      - main
   pull_request:
   schedule:
     - cron: '0 0 * * *'
@@ -127,6 +126,18 @@ jobs:
             const lintStatus = describe(lintOutcome);
             const staticAnalysisStatus = describe(staticAnalysisOutcome);
 
+            const prHeadSha = context.payload.pull_request?.head?.sha;
+            const livePull = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            const livePrHeadSha = livePull.data.head.sha;
+            if (prHeadSha && livePrHeadSha && prHeadSha !== livePrHeadSha) {
+              core.info(`Skipping stale checks summary comment update for event head ${prHeadSha}; latest PR head is ${livePrHeadSha}.`);
+              return;
+            }
+
             const staticAnalysisMessage = staticAnalysisOutcome === 'success'
               ? 'No issues detected'
               : staticAnalysisOutcome === 'failure'
@@ -136,9 +147,9 @@ jobs:
             const body = [
               marker,
               '## Checks Summary',
-              `- Dependencies Security Check: ${composerStatus.icon} **${composerStatus.label}**`,
-              `- Lint: ${lintStatus.icon} **${lintStatus.label}**`,
-              `- Static Analysis: ${staticAnalysisStatus.icon} **${staticAnalysisMessage}**`,
+              `- ${composerStatus.icon} Dependencies Security Check: **${composerStatus.label}**`,
+              `- ${lintStatus.icon} Lint: **${lintStatus.label}**`,
+              `- ${staticAnalysisStatus.icon} Static Analysis: **${staticAnalysisMessage}**`,
             ].join('\n');
 
             const { owner, repo } = context.repo;
@@ -220,19 +231,39 @@ jobs:
           echo "coverage_percentage=${coverage_percentage}" >> "$GITHUB_OUTPUT"
 
       - name: Comment coverage on pull request
-        if: github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const marker = '<!-- tests-coverage-comment -->';
             const coverage = '${{ steps.coverage.outputs.coverage_percentage }}';
+
+            const prHeadSha = context.payload.pull_request?.head?.sha;
+            const livePull = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            const livePrHeadSha = livePull.data.head.sha;
+            if (prHeadSha && livePrHeadSha && prHeadSha !== livePrHeadSha) {
+              core.info(`Skipping stale coverage comment update for event head ${prHeadSha}; latest PR head is ${livePrHeadSha}.`);
+              return;
+            }
+
+            const threshold = 80;
+            const coverageValue = Number(coverage);
+            const coverageLine = !coverage
+              ? '- ❔ Total coverage: **Unavailable** (threshold: 80%, coverage line not detected in test output).'
+              : Number.isNaN(coverageValue)
+                ? `- ❔ Total coverage: **${coverage}%** (threshold: 80%)`
+                : coverageValue < threshold
+                  ? `- ⚠️ Total coverage: **${coverage}%** (threshold: 80%, below threshold)`
+                  : `- ✅ Total coverage: **${coverage}%** (threshold: 80%)`;
+
             const body = [
               marker,
               '## Test Coverage',
-              coverage
-                ? `- Total coverage: **${coverage}%**`
-                : '- Total coverage: **Unavailable** (coverage line not detected in test output).',
-              '- Threshold: **80%**',
+              coverageLine,
             ].join('\n');
 
             const { owner, repo } = context.repo;
@@ -260,135 +291,3 @@ jobs:
                 body,
               });
             }
-
-  # ---------------------------------------------------------------------------
-  # Legacy layout (parallel jobs: Quality, Lint, PHPStan each on own runner).
-  # Kept for reference; superseded by `checks` + `tests` above.
-  # ---------------------------------------------------------------------------
-  #   quality:
-  #     name: Quality
-  #     runs-on: ubuntu-latest
-  #
-  #     steps:
-  #       - name: Checkout code
-  #         uses: actions/checkout@v4
-  #
-  #       - name: Setup PHP
-  #         uses: shivammathur/setup-php@v2
-  #         with:
-  #           php-version: '8.3'
-  #           coverage: none
-  #
-  #       - name: Validate Composer configuration
-  #         run: composer validate --strict
-  #
-  #   lint:
-  #     name: Lint
-  #     runs-on: ubuntu-latest
-  #
-  #     steps:
-  #       - name: Checkout code
-  #         uses: actions/checkout@v4
-  #
-  #       - name: Setup PHP
-  #         uses: shivammathur/setup-php@v2
-  #         with:
-  #           php-version: '8.3'
-  #           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
-  #           coverage: none
-  #
-  #       - name: Get Composer cache directory
-  #         id: composer-cache
-  #         run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-  #
-  #       - name: Cache Composer dependencies
-  #         uses: actions/cache@v4
-  #         with:
-  #           path: ${{ steps.composer-cache.outputs.dir }}
-  #           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-  #           restore-keys: |
-  #             ${{ runner.os }}-composer-
-  #
-  #       - name: Install Composer dependencies
-  #         run: composer install --prefer-dist --no-interaction --no-progress
-  #
-  #       - name: Check code style with Pint
-  #         run: vendor/bin/pint --test
-  #
-  #   static_analysis:
-  #     name: PHPStan
-  #     runs-on: ubuntu-latest
-  #
-  #     steps:
-  #       - name: Checkout code
-  #         uses: actions/checkout@v4
-  #
-  #       - name: Setup PHP
-  #         uses: shivammathur/setup-php@v2
-  #         with:
-  #           php-version: '8.3'
-  #           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
-  #           coverage: none
-  #
-  #       - name: Get Composer cache directory
-  #         id: composer-cache
-  #         run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-  #
-  #       - name: Cache Composer dependencies
-  #         uses: actions/cache@v4
-  #         with:
-  #           path: ${{ steps.composer-cache.outputs.dir }}
-  #           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-  #           restore-keys: |
-  #             ${{ runner.os }}-composer-
-  #
-  #       - name: Install Composer dependencies
-  #         run: composer install --prefer-dist --no-interaction --no-progress
-  #
-  #       - name: Copy environment file
-  #         run: cp .env.example .env
-  #
-  #       - name: Generate app key
-  #         run: php artisan key:generate
-  #
-  #       - name: Run PHPStan
-  #         run: composer run analyse --no-interaction
-  #
-  #   tests:
-  #     name: Tests
-  #     runs-on: ubuntu-latest
-  #
-  #     steps:
-  #       - name: Checkout code
-  #         uses: actions/checkout@v4
-  #
-  #       - name: Setup PHP
-  #         uses: shivammathur/setup-php@v2
-  #         with:
-  #           php-version: '8.3'
-  #           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
-  #           coverage: none
-  #
-  #       - name: Get Composer cache directory
-  #         id: composer-cache
-  #         run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-  #
-  #       - name: Cache Composer dependencies
-  #         uses: actions/cache@v4
-  #         with:
-  #           path: ${{ steps.composer-cache.outputs.dir }}
-  #           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-  #           restore-keys: |
-  #             ${{ runner.os }}-composer-
-  #
-  #       - name: Install Composer dependencies
-  #         run: composer install --prefer-dist --no-interaction --no-progress
-  #
-  #       - name: Copy environment file
-  #         run: cp .env.example .env
-  #
-  #       - name: Generate app key
-  #         run: php artisan key:generate
-  #
-  #       - name: Execute tests
-  #         run: php artisan test --compact
