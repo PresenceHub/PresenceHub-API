@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Domain\Content\Models\Post;
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasUuid;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -32,7 +33,31 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasUuid, Notifiable;
+    use Auditable, HasApiTokens, HasFactory, HasUuid, Notifiable;
+
+    /**
+     * @var list<string>
+     */
+    protected array $auditInclude = [
+        'name',
+        'email',
+        'password',
+        'role_id',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    protected array $auditExclude = [
+        'remember_token',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    protected array $auditMasked = [
+        'password',
+    ];
 
     /**
      * The attributes that are mass assignable.
