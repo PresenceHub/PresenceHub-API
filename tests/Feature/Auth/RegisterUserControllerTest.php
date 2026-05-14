@@ -4,10 +4,12 @@ namespace Tests\Feature\Auth;
 
 use App\Domain\Auth\Events\UserRegistered;
 use App\Enums\Role as RoleSlug;
+use App\Mail\RegistrationWelcomeMail;
 use App\Models\Event as EventRecord;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -132,6 +134,44 @@ class RegisterUserControllerTest extends TestCase
         $this->assertSame('jane@example.com', $event->properties['email']);
         $this->assertSame('Jane Doe', $event->properties['name']);
         $this->assertSame('customer', $event->properties['role_slug']);
+    }
+
+    public function test_successful_registration_queues_welcome_email(): void
+    {
+        Mail::fake();
+
+        $this
+            ->postJson('/api/v1/auth/register', [
+                'name' => 'Jane Doe',
+                'email' => 'jane@example.com',
+                'password' => 'password1234',
+            ])
+            ->assertCreated();
+
+        Mail::assertQueued(RegistrationWelcomeMail::class, function (RegistrationWelcomeMail $mail): bool {
+            return $mail->hasTo('jane@example.com')
+                && $mail->user->email === 'jane@example.com'
+                && $mail->user->name === 'Jane Doe'
+                && $mail->senderAddress === config('mail.from.address')
+                && $mail->senderName === config('mail.from.name');
+        });
+    }
+
+    public function test_failed_registration_does_not_queue_welcome_email(): void
+    {
+        Mail::fake();
+
+        User::factory()->create(['email' => 'jane@example.com']);
+
+        $this
+            ->postJson('/api/v1/auth/register', [
+                'name' => 'Jane Doe',
+                'email' => 'jane@example.com',
+                'password' => 'password1234',
+            ])
+            ->assertUnprocessable();
+
+        Mail::assertNothingQueued();
     }
 
     public function test_failed_registration_does_not_record_event(): void
