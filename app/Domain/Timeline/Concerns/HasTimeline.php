@@ -1,19 +1,21 @@
 <?php
 
-namespace App\Models\Concerns;
+declare(strict_types=1);
+
+namespace App\Domain\Timeline\Concerns;
 
 use Spatie\Activitylog\Contracts\LoggablePipe;
 use Spatie\Activitylog\EventLogBag;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
-trait Auditable
+trait HasTimeline
 {
     use LogsActivity {
         shouldLogEvent as protected shouldLogEventFromLogsActivity;
     }
 
-    protected static function bootAuditable(): void
+    protected static function bootHasTimeline(): void
     {
         static::addLogChange(new class implements LoggablePipe
         {
@@ -21,12 +23,12 @@ trait Auditable
             {
                 $model = $event->model;
 
-                if (! method_exists($model, 'auditMaskedAttributes')) {
+                if (! method_exists($model, 'timelineMaskedAttributes')) {
                     return $next($event);
                 }
 
                 /** @var array<string> $maskedAttributes */
-                $maskedAttributes = $model->auditMaskedAttributes();
+                $maskedAttributes = $model->timelineMaskedAttributes();
 
                 if ($maskedAttributes !== []) {
                     foreach (['attributes', 'old'] as $changeSet) {
@@ -56,16 +58,16 @@ trait Auditable
         $options = LogOptions::defaults()
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
-            ->dontLogIfAttributesChangedOnly($this->auditIgnoredOnlyAttributes());
+            ->dontLogIfAttributesChangedOnly($this->timelineIgnoredOnlyAttributes());
 
-        $include = $this->auditIncludedAttributes();
+        $include = $this->timelineIncludedAttributes();
         if ($include !== []) {
             $options->logOnly($include);
         } else {
             $options->logFillable();
         }
 
-        $exclude = $this->auditExcludedAttributes();
+        $exclude = $this->timelineExcludedAttributes();
         if ($exclude !== []) {
             $options->logExcept($exclude);
         }
@@ -75,7 +77,7 @@ trait Auditable
 
     protected function shouldLogEvent(string $eventName): bool
     {
-        if (! $this->auditShouldRecordActivity()) {
+        if (! $this->timelineShouldRecord()) {
             return false;
         }
 
@@ -85,10 +87,10 @@ trait Auditable
     /**
      * @return list<string>
      */
-    protected function auditIncludedAttributes(): array
+    protected function timelineIncludedAttributes(): array
     {
         /** @var array<string> $include */
-        $include = property_exists($this, 'auditInclude') ? $this->auditInclude : [];
+        $include = property_exists($this, 'timelineInclude') ? $this->timelineInclude : [];
 
         return $include;
     }
@@ -96,10 +98,10 @@ trait Auditable
     /**
      * @return list<string>
      */
-    protected function auditExcludedAttributes(): array
+    protected function timelineExcludedAttributes(): array
     {
         /** @var array<string> $exclude */
-        $exclude = property_exists($this, 'auditExclude') ? $this->auditExclude : [];
+        $exclude = property_exists($this, 'timelineExclude') ? $this->timelineExclude : [];
 
         return $exclude;
     }
@@ -107,10 +109,10 @@ trait Auditable
     /**
      * @return list<string>
      */
-    public function auditMaskedAttributes(): array
+    public function timelineMaskedAttributes(): array
     {
         /** @var array<string> $masked */
-        $masked = property_exists($this, 'auditMasked') ? $this->auditMasked : [];
+        $masked = property_exists($this, 'timelineMasked') ? $this->timelineMasked : [];
 
         return $masked;
     }
@@ -118,18 +120,18 @@ trait Auditable
     /**
      * @return list<string>
      */
-    protected function auditIgnoredOnlyAttributes(): array
+    protected function timelineIgnoredOnlyAttributes(): array
     {
         /** @var array<string> $ignored */
-        $ignored = property_exists($this, 'auditIgnoreIfOnly') ? $this->auditIgnoreIfOnly : ['updated_at'];
+        $ignored = property_exists($this, 'timelineIgnoreIfOnly') ? $this->timelineIgnoreIfOnly : ['updated_at'];
 
         return $ignored;
     }
 
-    protected function auditShouldRecordActivity(): bool
+    protected function timelineShouldRecord(): bool
     {
         /** @var bool $shouldRecord */
-        $shouldRecord = property_exists($this, 'shouldRecordActivity') ? $this->shouldRecordActivity : true;
+        $shouldRecord = property_exists($this, 'shouldRecordTimeline') ? $this->shouldRecordTimeline : true;
 
         return $shouldRecord;
     }

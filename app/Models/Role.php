@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\Auditable;
+use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Models\Concerns\HasSlug;
 use App\Models\Concerns\HasUuid;
 use Database\Factories\RoleFactory;
@@ -21,7 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[UseFactory(RoleFactory::class)]
 class Role extends Model
 {
-    use Auditable, HasFactory, HasSlug, HasUuid;
+    use HasFactory, HasSlug, HasTimeline, HasUuid;
 
     /**
      * @var list<string>
@@ -33,7 +33,7 @@ class Role extends Model
     /**
      * @var list<string>
      */
-    protected array $auditInclude = [
+    protected array $timelineInclude = [
         'slug',
         'name',
         'description',

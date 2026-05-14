@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature\AuditTrail;
+namespace Tests\Feature\Timeline;
 
 use App\Domain\Content\Enums\PostStatus;
 use App\Domain\Content\Enums\PostTargetStatus;
@@ -9,6 +9,7 @@ use App\Domain\Content\Models\PlatformOAuthConnection;
 use App\Domain\Content\Models\Post;
 use App\Domain\Content\Models\PostMedia;
 use App\Domain\Content\Models\PostTarget;
+use App\Domain\Timeline\Models\Timeline;
 use App\Enums\WorkspaceMemberRole;
 use App\Models\Event;
 use App\Models\Platform;
@@ -18,10 +19,9 @@ use App\Models\Workspace;
 use App\Models\WorkspaceMember;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Storage;
-use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
-class ModelActivityLogTest extends TestCase
+class TimelineTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
@@ -34,7 +34,7 @@ class ModelActivityLogTest extends TestCase
 
         $workspace->update(['name' => 'Updated Workspace']);
 
-        $activity = Activity::query()
+        $activity = Timeline::query()
             ->forSubject($workspace)
             ->forEvent('updated')
             ->latest('id')
@@ -55,7 +55,7 @@ class ModelActivityLogTest extends TestCase
             'password' => 'plain-text-secret',
         ]);
 
-        $activity = Activity::query()
+        $activity = Timeline::query()
             ->forSubject($user)
             ->forEvent('created')
             ->latest('id')
@@ -72,7 +72,7 @@ class ModelActivityLogTest extends TestCase
 
         $workspace->update(['name' => 'System Updated Workspace']);
 
-        $activity = Activity::query()
+        $activity = Timeline::query()
             ->forSubject($workspace)
             ->forEvent('updated')
             ->latest('id')
@@ -83,7 +83,7 @@ class ModelActivityLogTest extends TestCase
         $this->assertSame('system', $activity->getExtraProperty('meta.actor_label'));
     }
 
-    public function test_non_audited_models_do_not_generate_activity_logs(): void
+    public function test_models_without_has_timeline_do_not_write_timeline_entries(): void
     {
         $event = Event::query()->create([
             'name' => 'test.debug',
@@ -93,7 +93,7 @@ class ModelActivityLogTest extends TestCase
             'occurred_at' => now(),
         ]);
 
-        $this->assertSame(0, Activity::query()->forSubject($event)->count());
+        $this->assertSame(0, Timeline::query()->forSubject($event)->count());
     }
 
     public function test_workspace_member_update_is_logged(): void
@@ -116,7 +116,7 @@ class ModelActivityLogTest extends TestCase
         $this->actingAs($workspace->owner);
         $member->update(['user_id' => $replacement->id]);
 
-        $activity = Activity::query()
+        $activity = Timeline::query()
             ->forSubject($member)
             ->forEvent('updated')
             ->latest('id')
@@ -141,7 +141,7 @@ class ModelActivityLogTest extends TestCase
             'refresh_token' => 'rotated-refresh',
         ]);
 
-        $updateActivity = Activity::query()
+        $updateActivity = Timeline::query()
             ->forSubject($channel)
             ->forEvent('updated')
             ->latest('id')
@@ -153,7 +153,7 @@ class ModelActivityLogTest extends TestCase
 
         $channel->delete();
 
-        $deleteActivity = Activity::query()
+        $deleteActivity = Timeline::query()
             ->forSubject($channel)
             ->forEvent('deleted')
             ->latest('id')
@@ -175,7 +175,7 @@ class ModelActivityLogTest extends TestCase
             'access_token' => 'rotated-oauth-token',
         ]);
 
-        $activity = Activity::query()
+        $activity = Timeline::query()
             ->forSubject($connection)
             ->forEvent('updated')
             ->latest('id')
@@ -185,17 +185,17 @@ class ModelActivityLogTest extends TestCase
         $this->assertSame('*****', $activity->changes['attributes']['access_token']);
     }
 
-    public function test_post_update_excludes_content_from_activity_log(): void
+    public function test_post_update_excludes_content_from_timeline_entry(): void
     {
         $actor = User::factory()->create();
         $post = Post::factory()->create([
-            'content' => 'Large body content that should not appear in audit payload.',
+            'content' => 'Large body content that should not appear in timeline payload.',
         ]);
 
         $this->actingAs($actor);
         $post->update(['status' => PostStatus::Published]);
 
-        $activity = Activity::query()
+        $activity = Timeline::query()
             ->forSubject($post)
             ->forEvent('updated')
             ->latest('id')
@@ -215,7 +215,7 @@ class ModelActivityLogTest extends TestCase
         $this->actingAs($actor);
         $target->update(['status' => PostTargetStatus::Completed]);
 
-        $activity = Activity::query()
+        $activity = Timeline::query()
             ->forSubject($target)
             ->forEvent('updated')
             ->latest('id')
@@ -238,7 +238,7 @@ class ModelActivityLogTest extends TestCase
         $this->actingAs($actor);
         $media->update(['order' => 5]);
 
-        $updateActivity = Activity::query()
+        $updateActivity = Timeline::query()
             ->forSubject($media)
             ->forEvent('updated')
             ->latest('id')
@@ -248,7 +248,7 @@ class ModelActivityLogTest extends TestCase
 
         $media->delete();
 
-        $this->assertSame(1, Activity::query()->forSubject($media)->forEvent('deleted')->count());
+        $this->assertSame(1, Timeline::query()->forSubject($media)->forEvent('deleted')->count());
     }
 
     public function test_role_does_not_log_created_but_logs_updated(): void
@@ -261,11 +261,11 @@ class ModelActivityLogTest extends TestCase
             'description' => 'Initial',
         ]);
 
-        $this->assertSame(0, Activity::query()->forSubject($role)->count());
+        $this->assertSame(0, Timeline::query()->forSubject($role)->count());
 
         $role->update(['description' => 'Changed description']);
 
-        $activity = Activity::query()
+        $activity = Timeline::query()
             ->forSubject($role)
             ->forEvent('updated')
             ->latest('id')
@@ -283,11 +283,11 @@ class ModelActivityLogTest extends TestCase
             'name' => 'Original Platform Name',
         ]);
 
-        $this->assertSame(0, Activity::query()->forSubject($platform)->count());
+        $this->assertSame(0, Timeline::query()->forSubject($platform)->count());
 
         $platform->update(['name' => 'Renamed Platform']);
 
-        $activity = Activity::query()
+        $activity = Timeline::query()
             ->forSubject($platform)
             ->forEvent('updated')
             ->latest('id')

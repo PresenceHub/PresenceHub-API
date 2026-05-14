@@ -2,7 +2,7 @@
 
 namespace App\Domain\Content\Models;
 
-use App\Models\Concerns\Auditable;
+use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Models\Concerns\HasUuid;
 use App\Models\User;
 use App\Models\Workspace;
@@ -31,7 +31,7 @@ use Illuminate\Support\Facades\Storage;
 #[UseFactory(PostMediaFactory::class)]
 class PostMedia extends Model
 {
-    use Auditable, HasFactory, HasUuid;
+    use HasFactory, HasTimeline, HasUuid;
 
     /**
      * @var string
@@ -41,7 +41,7 @@ class PostMedia extends Model
     /**
      * @var list<string>
      */
-    protected array $auditInclude = [
+    protected array $timelineInclude = [
         'workspace_id',
         'owner_id',
         'post_id',

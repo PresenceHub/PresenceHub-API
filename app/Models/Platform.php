@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\Auditable;
+use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Models\Concerns\HasSlug;
 use Database\Factories\PlatformFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Model;
 #[UseFactory(PlatformFactory::class)]
 class Platform extends Model
 {
-    use Auditable, HasFactory, HasSlug;
+    use HasFactory, HasSlug, HasTimeline;
 
     /**
      * @var list<string>
@@ -29,7 +29,7 @@ class Platform extends Model
     /**
      * @var list<string>
      */
-    protected array $auditInclude = [
+    protected array $timelineInclude = [
         'slug',
         'name',
     ];

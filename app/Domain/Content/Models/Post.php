@@ -4,7 +4,7 @@ namespace App\Domain\Content\Models;
 
 use App\Domain\Content\Enums\PostStatus;
 use App\Domain\Content\Enums\PostType;
-use App\Models\Concerns\Auditable;
+use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Models\Concerns\HasUuid;
 use App\Models\User;
 use App\Models\Workspace;
@@ -31,12 +31,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[UseFactory(PostFactory::class)]
 class Post extends Model
 {
-    use Auditable, HasFactory, HasUuid, SoftDeletes;
+    use HasFactory, HasTimeline, HasUuid, SoftDeletes;
 
     /**
      * @var list<string>
      */
-    protected array $auditInclude = [
+    protected array $timelineInclude = [
         'workspace_id',
         'created_by',
         'type',

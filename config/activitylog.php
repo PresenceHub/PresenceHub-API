@@ -1,6 +1,6 @@
 <?php
 
-use Spatie\Activitylog\Models\Activity;
+use App\Domain\Timeline\Models\Timeline;
 
 return [
 
@@ -37,17 +37,17 @@ return [
      * It should implement the Spatie\Activitylog\Contracts\Activity interface
      * and extend Illuminate\Database\Eloquent\Model.
      */
-    'activity_model' => Activity::class,
+    'activity_model' => Timeline::class,
 
     /*
      * This is the name of the table that will be created by the migration and
-     * used by the Activity model shipped with this package.
+     * used by the activity model configured above.
      */
-    'table_name' => env('ACTIVITY_LOGGER_TABLE_NAME', 'activities'),
+    'table_name' => env('ACTIVITY_LOGGER_TABLE_NAME', 'timeline'),
 
     /*
      * This is the database connection that will be used by the migration and
-     * the Activity model shipped with this package. In case it's not set
+     * the activity model configured above. In case it's not set
      * Laravel's database.default will be used instead.
      */
     'database_connection' => env('ACTIVITY_LOGGER_DB_CONNECTION'),

@@ -2,7 +2,7 @@
 
 namespace App\Domain\Content\Models;
 
-use App\Models\Concerns\Auditable;
+use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Models\Concerns\HasUuid;
 use App\Models\Platform;
 use Database\Factories\ChannelFactory;
@@ -30,12 +30,12 @@ use Illuminate\Support\Carbon;
 class Channel extends Model
 {
     /** @use HasFactory<ChannelFactory> */
-    use Auditable, HasFactory, HasUuid, SoftDeletes;
+    use HasFactory, HasTimeline, HasUuid, SoftDeletes;
 
     /**
      * @var list<string>
      */
-    protected array $auditInclude = [
+    protected array $timelineInclude = [
         'workspace_id',
         'platform_id',
         'platform_account_id',
@@ -49,7 +49,7 @@ class Channel extends Model
     /**
      * @var list<string>
      */
-    protected array $auditMasked = [
+    protected array $timelineMasked = [
         'access_token',
         'refresh_token',
     ];
