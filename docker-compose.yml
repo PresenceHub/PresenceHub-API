@@ -1,6 +1,7 @@
 name: PresenceHub-API
 
-# `api` + `postgres` + `nginx` share the `backend` bridge (no static IPs). Use DB_HOST=postgres from the api container.
+# `api` + `postgres` + `nginx` share the `backend` bridge (no static IPs). Laravel reads `.env` from the bind mount; set DB_HOST=postgres in `.env` when using this stack.
+# Do not inject DB_* via Compose `env_file`/`environment` on `api`—that blocks `.env.testing` during `php artisan test` (Dotenv safeLoad).
 # External HTTP(S) is served by `nginx` on ports 80/443; `api` listens on 8000 inside the network only.
 # If you still see errors mentioning 172.28.x.x or `db`, remove old networks: `docker compose down` then prune
 # unused networks in Docker Desktop, and ensure you are in this project directory when you run compose.
@@ -12,15 +13,6 @@ services:
       dockerfile: docker/Dockerfile
     expose:
       - "8000"
-    env_file:
-      - .env
-    environment:
-      DB_CONNECTION: pgsql
-      DB_HOST: postgres
-      DB_PORT: "5432"
-      DB_DATABASE: "${DB_DATABASE:-presencehub-dev}"
-      DB_USERNAME: "${DB_USERNAME:-presencehub-dev}"
-      DB_PASSWORD: "${DB_PASSWORD:-presencehub-pwd}"
     volumes:
       - .:/var/www/html
     depends_on:
@@ -52,6 +44,8 @@ services:
       POSTGRES_PASSWORD: "${DB_PASSWORD:-secret}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Creates presencehub_testing on first volume init only. Existing volume: recreate volume or run CREATE DATABASE manually once.
+      - ./docker/postgres/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
