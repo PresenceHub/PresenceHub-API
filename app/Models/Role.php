@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasSlug;
 use App\Models\Concerns\HasUuid;
 use Database\Factories\RoleFactory;
@@ -20,7 +21,23 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[UseFactory(RoleFactory::class)]
 class Role extends Model
 {
-    use HasFactory, HasSlug, HasUuid;
+    use Auditable, HasFactory, HasSlug, HasUuid;
+
+    /**
+     * @var list<string>
+     */
+    protected static $recordEvents = [
+        'updated',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    protected array $auditInclude = [
+        'slug',
+        'name',
+        'description',
+    ];
 
     /**
      * @var list<string>
