@@ -173,3 +173,38 @@ This project has domain-specific skills available. You MUST activate the relevan
 - To filter on a particular test name: `php artisan test --compact --filter=testName` (recommended after making a change to a related file).
 
 </laravel-boost-guidelines>
+
+## Cursor Cloud specific instructions
+
+### Architecture overview
+
+This is the **PresenceHub-API** repository — a Laravel 13 REST API backend. The companion frontend lives in a sibling repo (`PresenceHub-Web`, Next.js 16 / pnpm).
+
+### System dependencies
+
+- PHP 8.3 with extensions: `pdo_pgsql`, `pcov`, `mbstring`, `xml`, `curl`, `zip`, `gd`, `intl`, `bcmath`
+- Composer 2
+- PostgreSQL 16 (databases: `presencehub-dev` for app, `presencehub_testing` for tests; user: `presencehub-dev` / password: `secret`)
+- Node 22 + npm (only for Vite asset builds)
+
+### Running locally (without Docker)
+
+1. Ensure PostgreSQL is running: `sudo pg_ctlcluster 16 main start`
+2. API server: `php artisan serve --host=0.0.0.0 --port=8000`
+3. Full dev (server + queue + logs + vite): `composer run dev` (uses `concurrently`)
+4. Database must be seeded before registration works: `php artisan db:seed --force --no-interaction`
+
+### Key gotchas
+
+- The `.env` uses `DB_HOST=127.0.0.1` for non-Docker local dev; the `.env.testing` also needs `DB_HOST=127.0.0.1` (the example defaults to `postgres` Docker hostname).
+- Registration requires roles/platforms to be seeded first (`php artisan db:seed`). Without seeding, you'll get "Customer role not found".
+- The `X-Workspace-Uuid` header is required for most authenticated API endpoints that operate on workspace-scoped resources.
+- Tests run with `QUEUE_CONNECTION=sync` and `CACHE_STORE=array`, so no external services are needed for the test suite.
+- CORS is handled by Laravel's default middleware; the frontend at `http://localhost:3000` can call the API at `http://localhost:8000`.
+
+### Lint / Test / Analysis commands
+
+- Lint (Pint): `vendor/bin/pint --test` (check) / `vendor/bin/pint` (fix)
+- Static analysis: `composer run analyse`
+- Tests: `php artisan test --compact`
+- Single test: `php artisan test --compact --filter=testName`
