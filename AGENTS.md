@@ -173,3 +173,33 @@ This project has domain-specific skills available. You MUST activate the relevan
 - To filter on a particular test name: `php artisan test --compact --filter=testName` (recommended after making a change to a related file).
 
 </laravel-boost-guidelines>
+
+## Cursor Cloud specific instructions
+
+### Environment overview
+
+PresenceHub is a Laravel 13 API (PHP 8.3) backed by PostgreSQL 16. The VM has PHP 8.3 (ondrej/php PPA), Composer 2, Node 22, and PostgreSQL 16 installed natively — Docker is **not** used in Cloud Agent sessions.
+
+### Database
+
+PostgreSQL runs locally. The dev database is `presencehub-dev` and the test database is `presencehub_testing`, both owned by user `presencehub-dev` (password `secret`). The `.env` is pre-configured to connect via `127.0.0.1:5432`. If PostgreSQL is not running, start it with `sudo pg_ctlcluster 16 main start`.
+
+### Running the app
+
+Start the dev server: `php artisan serve --host=0.0.0.0 --port=8000`. The full dev experience (`composer run dev`) also starts the queue listener, Pail log tailing, and Vite — but requires `npx concurrently`. For API-only work, `php artisan serve` alone is sufficient.
+
+### Key commands
+
+| Task | Command |
+|---|---|
+| Lint (check) | `vendor/bin/pint --test` |
+| Lint (fix) | `vendor/bin/pint` |
+| Static analysis | `composer analyse` |
+| Tests | `php artisan test --compact` |
+| Build frontend | `npm run build` |
+
+### Gotchas
+
+- Tests use `RefreshDatabase` with the same PostgreSQL database from `.env` (no `.env.testing` file exists). All 135 tests pass against PostgreSQL.
+- The pre-commit hook in `.githooks/pre-commit` is designed for Docker Compose and will not work in Cloud Agent sessions. Use `--no-verify` when committing, and run `vendor/bin/pint --dirty --format agent`, `composer analyse`, and tests manually instead.
+- If you get a Vite manifest error, run `npm run build` before serving.
