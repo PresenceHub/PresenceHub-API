@@ -3,6 +3,7 @@
 namespace App\Domain\Content\Models;
 
 use App\Domain\Content\Enums\PostTargetStatus;
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasUuid;
 use Database\Factories\PostTargetFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -31,7 +32,21 @@ use Illuminate\Support\Carbon;
 #[UseFactory(PostTargetFactory::class)]
 class PostTarget extends Model
 {
-    use HasFactory, HasUuid;
+    use Auditable, HasFactory, HasUuid;
+
+    /**
+     * @var list<string>
+     */
+    protected array $auditInclude = [
+        'post_id',
+        'channel_id',
+        'status',
+        'scheduled_at',
+        'published_at',
+        'external_post_id',
+        'attempt_count',
+        'last_attempt_at',
+    ];
 
     /**
      * @var list<string>

@@ -2,6 +2,7 @@
 
 namespace App\Domain\Content\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasUuid;
 use App\Models\Platform;
 use Database\Factories\ChannelFactory;
@@ -29,7 +30,29 @@ use Illuminate\Support\Carbon;
 class Channel extends Model
 {
     /** @use HasFactory<ChannelFactory> */
-    use HasFactory, HasUuid, SoftDeletes;
+    use Auditable, HasFactory, HasUuid, SoftDeletes;
+
+    /**
+     * @var list<string>
+     */
+    protected array $auditInclude = [
+        'workspace_id',
+        'platform_id',
+        'platform_account_id',
+        'handle',
+        'access_token',
+        'refresh_token',
+        'token_expires_at',
+        'created_by',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    protected array $auditMasked = [
+        'access_token',
+        'refresh_token',
+    ];
 
     /**
      * @var list<string>

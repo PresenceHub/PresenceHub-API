@@ -2,6 +2,7 @@
 
 namespace App\Domain\Content\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasUuid;
 use App\Models\User;
 use App\Models\Workspace;
@@ -30,12 +31,26 @@ use Illuminate\Support\Facades\Storage;
 #[UseFactory(PostMediaFactory::class)]
 class PostMedia extends Model
 {
-    use HasFactory, HasUuid;
+    use Auditable, HasFactory, HasUuid;
 
     /**
      * @var string
      */
     protected $table = 'post_media';
+
+    /**
+     * @var list<string>
+     */
+    protected array $auditInclude = [
+        'workspace_id',
+        'owner_id',
+        'post_id',
+        'disk',
+        'path',
+        'mime_type',
+        'size',
+        'order',
+    ];
 
     /**
      * @var list<string>

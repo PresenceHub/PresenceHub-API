@@ -2,6 +2,7 @@
 
 namespace App\Domain\Content\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasUuid;
 use Database\Factories\PlatformOAuthConnectionFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -23,12 +24,31 @@ use Illuminate\Support\Carbon;
 class PlatformOAuthConnection extends Model
 {
     /** @use HasFactory<PlatformOAuthConnectionFactory> */
-    use HasFactory, HasUuid;
+    use Auditable, HasFactory, HasUuid;
 
     /**
      * @var string
      */
     protected $table = 'platform_oauth_connections';
+
+    /**
+     * @var list<string>
+     */
+    protected array $auditInclude = [
+        'workspace_id',
+        'platform_id',
+        'provider_user_id',
+        'access_token',
+        'expires_at',
+        'created_by',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    protected array $auditMasked = [
+        'access_token',
+    ];
 
     /**
      * @var list<string>
