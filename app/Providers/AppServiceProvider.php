@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Domain\Auth\Events\UserRegistered;
+use App\Domain\Auth\Listeners\SendRegistrationWelcomeEmail;
 use App\Domain\Content\Models\Post;
 use App\Events\Contracts\ShouldBeRecorded;
 use App\Listeners\RecordEvent;
@@ -42,5 +44,6 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Event::listen(ShouldBeRecorded::class, RecordEvent::class);
+        Event::listen(UserRegistered::class, SendRegistrationWelcomeEmail::class);
     }
 }
