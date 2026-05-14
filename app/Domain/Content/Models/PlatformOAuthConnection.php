@@ -2,7 +2,7 @@
 
 namespace App\Domain\Content\Models;
 
-use App\Models\Concerns\Auditable;
+use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Models\Concerns\HasUuid;
 use Database\Factories\PlatformOAuthConnectionFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -24,7 +24,7 @@ use Illuminate\Support\Carbon;
 class PlatformOAuthConnection extends Model
 {
     /** @use HasFactory<PlatformOAuthConnectionFactory> */
-    use Auditable, HasFactory, HasUuid;
+    use HasFactory, HasTimeline, HasUuid;
 
     /**
      * @var string
@@ -34,7 +34,7 @@ class PlatformOAuthConnection extends Model
     /**
      * @var list<string>
      */
-    protected array $auditInclude = [
+    protected array $timelineInclude = [
         'workspace_id',
         'platform_id',
         'provider_user_id',
@@ -46,7 +46,7 @@ class PlatformOAuthConnection extends Model
     /**
      * @var list<string>
      */
-    protected array $auditMasked = [
+    protected array $timelineMasked = [
         'access_token',
     ];
 

@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
+use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Enums\WorkspaceMemberRole;
-use App\Models\Concerns\Auditable;
 use Database\Factories\WorkspaceMemberFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,12 +18,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class WorkspaceMember extends Model
 {
     /** @use HasFactory<WorkspaceMemberFactory> */
-    use Auditable, HasFactory;
+    use HasFactory, HasTimeline;
 
     /**
      * @var list<string>
      */
-    protected array $auditInclude = [
+    protected array $timelineInclude = [
         'workspace_id',
         'user_id',
         'role',

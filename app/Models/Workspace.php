@@ -4,8 +4,8 @@ namespace App\Models;
 
 use App\Domain\Content\Models\Channel;
 use App\Domain\Content\Models\Post;
+use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Enums\WorkspaceMemberRole;
-use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasUuid;
 use Database\Factories\WorkspaceFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -24,12 +24,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[UseFactory(WorkspaceFactory::class)]
 class Workspace extends Model
 {
-    use Auditable, HasFactory, HasUuid;
+    use HasFactory, HasTimeline, HasUuid;
 
     /**
      * @var list<string>
      */
-    protected array $auditInclude = [
+    protected array $timelineInclude = [
         'name',
         'owner_id',
     ];

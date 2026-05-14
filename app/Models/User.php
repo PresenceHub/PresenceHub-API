@@ -4,7 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Domain\Content\Models\Post;
-use App\Models\Concerns\Auditable;
+use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Models\Concerns\HasUuid;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,12 +33,12 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use Auditable, HasApiTokens, HasFactory, HasUuid, Notifiable;
+    use HasApiTokens, HasFactory, HasTimeline, HasUuid, Notifiable;
 
     /**
      * @var list<string>
      */
-    protected array $auditInclude = [
+    protected array $timelineInclude = [
         'name',
         'email',
         'password',
@@ -48,14 +48,14 @@ class User extends Authenticatable
     /**
      * @var list<string>
      */
-    protected array $auditExclude = [
+    protected array $timelineExclude = [
         'remember_token',
     ];
 
     /**
      * @var list<string>
      */
-    protected array $auditMasked = [
+    protected array $timelineMasked = [
         'password',
     ];
 
