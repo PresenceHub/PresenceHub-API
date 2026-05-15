@@ -1,11 +1,16 @@
 # Local development setup
 
-This guide gets the API running in Docker with HTTPS in front of the Laravel app (Nginx reverse proxy → `php artisan serve` in the `api` service → PostgreSQL).
+This guide covers both supported local API workflows:
+
+- **Host PHP**: Laravel runs with `php artisan serve` on `http://localhost:8000` and connects to local PostgreSQL.
+- **Docker Compose**: Nginx serves `https://presencehub.test` / `https://presencehub.local`, proxies to the Laravel `api` service, and uses the Compose PostgreSQL service.
 
 ## Prerequisites
 
-- **Docker Desktop** (or Docker Engine + Compose) with enough resources for PHP, Nginx, and PostgreSQL
-- **mkcert** (recommended) so browsers trust your local certificates without constant warnings
+- PHP `8.3` and Composer `2` for host development.
+- PostgreSQL `16` for host development, or Docker Desktop / Docker Engine + Compose for the containerized stack.
+- Node.js `22` / npm if you run `composer run dev` and want Vite assets locally.
+- **mkcert** (recommended for Docker HTTPS) so browsers trust your local certificates without constant warnings.
 
 Install mkcert (macOS with Homebrew):
 
@@ -16,7 +21,65 @@ mkcert -install
 
 On Linux, follow [mkcert’s install instructions](https://github.com/FiloSottile/mkcert#installation) for your distribution.
 
-## 1. Map local hostnames
+## Host setup: PHP + local PostgreSQL
+
+Use this path when you want Laravel on `http://localhost:8000` without Docker.
+
+### 1. Install dependencies
+
+```bash
+composer install
+npm install
+```
+
+### 2. Create and configure `.env`
+
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+
+Set the database values for local PostgreSQL:
+
+```env
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=presencehub-dev
+DB_USERNAME=presencehub-dev
+DB_PASSWORD=secret
+```
+
+### 3. Prepare the database
+
+Create the development database if it does not already exist, then run migrations and seed required lookup data:
+
+```bash
+php artisan migrate
+php artisan db:seed --force --no-interaction
+```
+
+Registration depends on seeded roles/platforms; without seeding you may see errors such as "Customer role not found".
+
+### 4. Start the API
+
+```bash
+php artisan serve --host=0.0.0.0 --port=8000
+```
+
+For the full local dev loop (server, queue listener, logs, and Vite), run:
+
+```bash
+composer run dev
+```
+
+The companion web app should use `NEXT_PUBLIC_API_URL=http://localhost:8000` for this workflow.
+
+## Docker Compose setup: Nginx + API + PostgreSQL
+
+Use this path when you want the API behind local Nginx HTTPS.
+
+### 1. Map local hostnames
 
 The stack expects `presencehub.test` and `presencehub.local` (see [`docker/nginx.conf`](../docker/nginx.conf)). Add them to your hosts file:
 
@@ -24,7 +87,7 @@ The stack expects `presencehub.test` and `presencehub.local` (see [`docker/nginx
   - `127.0.0.1 presencehub.test presencehub.local`
 - **Windows:** edit `C:\Windows\System32\drivers\etc\hosts` the same way (may need an elevated editor).
 
-## 2. Create TLS files (do not commit keys)
+### 2. Create TLS files (do not commit keys)
 
 Nginx is configured to load fixed paths under `docker/ssl/`. **Generate a certificate and key on your machine** and use these exact output names so you do not have to edit Nginx:
 
@@ -32,7 +95,7 @@ Nginx is configured to load fixed paths under `docker/ssl/`. **Generate a certif
 cd /path/to/Presence-Hub-API
 mkdir -p docker/ssl
 
-mkcert -cert-file docker/ssl/presencehub.test+3.pem -key-file docker/ssl/presencehub.test+3-key.pem presencehub.test presencehub.local
+mkcert -cert-file docker/ssl/presencehub.local+3.pem -key-file docker/ssl/presencehub.local+3-key.pem presencehub.test presencehub.local
 ```
 
 - The `+3` in the filenames is only a label; what matters is that the paths match [`docker/nginx.conf`](../docker/nginx.conf).
@@ -41,7 +104,7 @@ mkcert -cert-file docker/ssl/presencehub.test+3.pem -key-file docker/ssl/presenc
 
 **If the `nginx` container fails to start** with an error about missing certificate files, confirm both files exist under `docker/ssl/` and match the `ssl_certificate` and `ssl_certificate_key` lines in `docker/nginx.conf`.
 
-## 3. Environment file
+### 3. Environment file
 
 ```bash
 cp .env.example .env
@@ -50,12 +113,20 @@ cp .env.example .env
 Edit `.env` as needed, at minimum for HTTPS behind the proxy:
 
 - `APP_URL=https://presencehub.test` (or `https://presencehub.local` if you prefer; keep it consistent with the URL you use in the browser)
+- `DB_CONNECTION=pgsql`
+- `DB_HOST=postgres`
+- `DB_PORT=5432`
+- `DB_DATABASE=presencehub-dev`
+- `DB_USERNAME=presencehub-dev`
+- `DB_PASSWORD=secret`
 
-The `api` service in [`docker-compose.yml`](../docker-compose.yml) sets `DB_*` for PostgreSQL inside the Compose network (`DB_HOST=postgres`, etc.), so the app in Docker uses Postgres regardless of the `DB_CONNECTION=sqlite` default in `.env.example`. For running Artisan **on the host** (without Compose) you would need to set `DB_CONNECTION=pgsql` and point `DB_HOST` to `127.0.0.1` and `DB_PORT` to the published port (default `5432` unless you set `POSTGRES_PORT` in `.env`).
+The `api` service reads `.env` from the bind mount. Compose does **not** inject `DB_*` into the API service, so set `DB_HOST=postgres` in `.env` before running Artisan inside the container. The Postgres service uses the same `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` values, defaulting to `presencehub-dev` / `presencehub-dev` / `secret` when they are unset.
+
+`POSTGRES_PORT` controls the host port exposed by the Postgres container and defaults to `5432`.
 
 The [`docker/entrypoint.sh`](../docker/entrypoint.sh) ensures `composer install`, a present `.env`, and `APP_KEY` are handled when the `api` container starts.
 
-## 4. Start the stack
+### 4. Start the stack
 
 From the project root:
 
@@ -68,15 +139,16 @@ docker compose up -d --build
 
 If port **80** or **443** is already in use (another web server, etc.), stop that service or change the port mapping for `nginx` in `docker-compose.yml` and use matching URLs/hosts.
 
-## 5. Database migrations
+### 5. Database migrations
 
-Run migrations inside the `api` container:
+Run migrations and seed required lookup data inside the `api` container:
 
 ```bash
 docker compose exec api php artisan migrate
+docker compose exec api php artisan db:seed --force --no-interaction
 ```
 
-## 6. Git hooks (optional)
+## Git hooks (optional)
 
 This repo ships Git hook scripts under [`.githooks/`](../.githooks/) (version-controlled). They are **not** enabled until you point Git at that directory.
 
@@ -105,11 +177,11 @@ chmod +x .githooks/pre-commit
 
 ### What `pre-commit` does
 
-The hook runs **inside the running `api` container** (same commands as a quick local gate):
+The hook runs **inside the running `api` container**:
 
-1. `composer format` (Pint — may modify files)
-2. `composer analyse` (PHPStan)
-3. `composer test`
+1. Formats staged PHP files with `composer format` (Pint — may modify files).
+2. Re-stages only the PHP files that were already staged.
+3. Runs `composer analyse` (PHPStan).
 
 **Requirements:** bring the stack up first (`docker compose up -d` or equivalent) so `docker-compose exec -T api …` succeeds. The script uses `docker-compose` with a hyphen, consistent with other project docs.
 
@@ -121,7 +193,7 @@ The hook runs **inside the running `api` container** (same commands as a quick l
 git commit --no-verify
 ```
 
-## 7. Quick checks
+## Quick checks
 
 ```bash
 docker compose ps
@@ -136,7 +208,7 @@ docker compose exec nginx nginx -t
   curl -skI https://presencehub.test/
   ```
 
-## 8. Optional: if private keys were ever committed
+## Optional: if private keys were ever committed
 
 If keys were added to git before they were ignored, remove them from the index (keeps the files on disk if needed; adjust paths to match your repo):
 
@@ -149,15 +221,16 @@ Regenerate local certs (step 2) and commit only the updated `.gitignore` and thi
 ## Troubleshooting
 
 - **`nginx` container exits** — Often missing or misnamed `docker/ssl` files, or `nginx -t` errors. Check logs: `docker compose logs nginx`.
-- **Database connection errors** — Confirm `postgres` is healthy: `docker compose ps`. Ensure the `api` service uses the Compose `environment` (see `docker-compose.yml`).
+- **Database connection errors in Docker** — Confirm `postgres` is healthy: `docker compose ps`. Ensure `.env` uses `DB_HOST=postgres` before running Artisan inside the `api` container.
+- **Database connection errors on the host** — Ensure PostgreSQL is running locally and `.env` uses `DB_HOST=127.0.0.1`.
 - **“Wrong host” or 404 from Laravel** — Set `APP_URL` to the hostname you use (`https://presencehub.test`).
 
 ## Tests (host PHP)
 
-With dependencies installed on the host (`composer install`):
+With dependencies installed on the host (`composer install`) and `.env` pointing at the test database:
 
 ```bash
-php artisan test
+php artisan test --compact
 ```
 
-(Use a `.env` configured for the same database as your test setup if you run non-SQLite tests.)
+Tests expect PostgreSQL; create a local `presencehub_testing` database or point your test environment at an equivalent database before running the suite.
