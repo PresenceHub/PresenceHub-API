@@ -1,8 +1,10 @@
 <?php
 
+use App\Domain\Auth\Http\Controllers\ForgotPasswordController;
 use App\Domain\Auth\Http\Controllers\LoginUserController;
 use App\Domain\Auth\Http\Controllers\LogoutUserController;
 use App\Domain\Auth\Http\Controllers\RegisterUserController;
+use App\Domain\Auth\Http\Controllers\ResetPasswordController;
 use App\Domain\Content\Http\Controllers\ChannelController;
 use App\Domain\Content\Http\Controllers\PlatformController;
 use App\Domain\Content\Http\Controllers\PostController;
@@ -24,6 +26,14 @@ Route::prefix('v1')->name('v1.')->group(function () {
         Route::post('/login', LoginUserController::class)
             ->middleware('throttle:5,1')
             ->name('login');
+
+        Route::post('/forgot-password', ForgotPasswordController::class)
+            ->middleware('throttle:5,1')
+            ->name('forgot-password');
+
+        Route::post('/reset-password', ResetPasswordController::class)
+            ->middleware('throttle:5,1')
+            ->name('reset-password');
 
         Route::post('/logout', LogoutUserController::class)
             ->middleware('auth:sanctum')

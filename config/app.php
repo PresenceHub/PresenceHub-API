@@ -54,6 +54,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'ph_web_url' => env('PH_WEB_URL', 'http://localhost:3000'),
+
     'post_media_storage_path' => env('POST_MEDIA_STORAGE_PATH') ?: 'workspace/%s/media/posts',
 
     /*
