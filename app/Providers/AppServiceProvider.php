@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use Laravel\Telescope\TelescopeServiceProvider as TelescopePackageServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -38,6 +39,14 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(Workspace::class, WorkspacePolicy::class);
         Gate::policy(Post::class, PostPolicy::class);
+
+        PasswordRule::defaults(static function () {
+            return PasswordRule::min(14)
+                ->letters()
+                ->mixedCase()
+                ->numbers()
+                ->symbols();
+        });
 
         Route::macro('enum', function (string $enum, callable $callback) {
             foreach ($enum::cases() as $case) {
