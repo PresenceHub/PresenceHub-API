@@ -20,6 +20,8 @@ class UserResource extends JsonResource
             'uuid' => $this->uuid,
             'name' => $this->name,
             'email' => $this->email,
+            'isEmailVerified' => $this->hasVerifiedEmail(),
+            'emailVerifiedAt' => $this->email_verified_at?->toISOString(),
             'role' => RoleResource::make($this->whenLoaded('role')),
             'currentWorkspace' => WorkspaceResource::make($this->whenLoaded('currentWorkspace')),
             'workspaces' => WorkspaceResource::collection($this->whenLoaded('workspaces')),

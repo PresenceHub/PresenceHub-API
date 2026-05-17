@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Domain\Content\Models\Post;
 use App\Domain\Timeline\Concerns\HasTimeline;
 use App\Models\Concerns\HasUuid;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -23,6 +24,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property int $role_id
  * @property string $name
  * @property string $email
+ * @property Carbon|null $email_verified_at
  * @property string $password
  * @property-read ?Role $role
  * @property-read ?Workspace $currentWorkspace
@@ -30,7 +32,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read Collection<int, Workspace> $workspaces
  * @property-read Collection<int, Post> $posts
  */
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasTimeline, HasUuid, Notifiable;

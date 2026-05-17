@@ -24,6 +24,11 @@ class LoginUserController
         }
 
         $user->loadMissing('role', 'currentWorkspace', 'workspaces');
+
+        if (! $user->hasVerifiedEmail()) {
+            $user->sendEmailVerificationNotification();
+        }
+
         $token = $user->createToken('api')->plainTextToken;
 
         Event::dispatch(new UserLoggedIn($user));

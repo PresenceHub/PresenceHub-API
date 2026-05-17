@@ -8,8 +8,10 @@ use App\Mail\RegistrationWelcomeMail;
 use App\Models\Event as EventRecord;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -33,6 +35,8 @@ class RegisterUserControllerTest extends TestCase
                     'uuid',
                     'name',
                     'email',
+                    'isEmailVerified',
+                    'emailVerifiedAt',
                     'role' => ['uuid', 'slug', 'name', 'description'],
                     'workspaces' => [
                         '*' => [
@@ -60,7 +64,11 @@ class RegisterUserControllerTest extends TestCase
             'email' => 'jane@example.com',
             'uuid' => $user->uuid,
             'role_id' => $creatorRole->id,
+            'email_verified_at' => null,
         ]);
+
+        $this->assertFalse($response->json('user.isEmailVerified'));
+        $this->assertNull($response->json('user.emailVerifiedAt'));
 
         $this->assertDatabaseHas('personal_access_tokens', [
             'tokenable_type' => $user::class,
@@ -136,9 +144,28 @@ class RegisterUserControllerTest extends TestCase
         $this->assertSame('customer', $event->properties['role_slug']);
     }
 
+    public function test_successful_registration_sends_verification_notification(): void
+    {
+        Notification::fake();
+        Mail::fake();
+
+        $this
+            ->postJson('/api/v1/auth/register', [
+                'name' => 'Jane Doe',
+                'email' => 'jane@example.com',
+                'password' => 'password1234',
+            ])
+            ->assertCreated();
+
+        $user = User::query()->where('email', 'jane@example.com')->firstOrFail();
+
+        Notification::assertSentTo($user, VerifyEmail::class);
+    }
+
     public function test_successful_registration_queues_welcome_email(): void
     {
         Mail::fake();
+        Notification::fake();
 
         $this
             ->postJson('/api/v1/auth/register', [
