@@ -12,9 +12,11 @@ use App\Models\Workspace;
 use App\Policies\PostPolicy;
 use App\Policies\WorkspacePolicy;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Telescope\TelescopeServiceProvider as TelescopePackageServiceProvider;
 
@@ -54,6 +56,30 @@ class AppServiceProvider extends ServiceProvider
             return $webUrl.'/reset-password?'.http_build_query([
                 'token' => $token,
                 'email' => $user->email,
+            ]);
+        });
+
+        VerifyEmail::createUrlUsing(function (User $user): string {
+            $webUrl = rtrim((string) config('app.ph_web_url'), '/');
+
+            $apiSignedUrl = URL::temporarySignedRoute(
+                'v1.auth.email.verify',
+                now()->addMinutes(60),
+                [
+                    'id' => $user->getKey(),
+                    'hash' => sha1($user->getEmailForVerification()),
+                ],
+                absolute: false,
+            );
+
+            $parsed = parse_url($apiSignedUrl);
+            parse_str($parsed['query'] ?? '', $query);
+
+            return $webUrl.'/verify-email?'.http_build_query([
+                'id' => $user->getKey(),
+                'hash' => sha1($user->getEmailForVerification()),
+                'expires' => $query['expires'] ?? '',
+                'signature' => $query['signature'] ?? '',
             ]);
         });
     }

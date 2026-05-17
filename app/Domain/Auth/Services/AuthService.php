@@ -11,6 +11,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\Workspace;
 use Exception;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 
@@ -44,7 +45,10 @@ class AuthService
 
         $workspace->members()->attach($user, ['role' => WorkspaceMemberRole::Owner]);
 
-        Event::dispatch(new UserRegistered($user->loadMissing('role'), $workspace));
+        $user = $user->loadMissing('role');
+
+        Event::dispatch(new UserRegistered($user, $workspace));
+        Event::dispatch(new Registered($user));
 
         return $user;
     }

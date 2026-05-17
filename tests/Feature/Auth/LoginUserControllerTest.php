@@ -7,7 +7,9 @@ use App\Models\Event;
 use App\Models\User;
 use App\Models\Workspace;
 use Database\Factories\UserFactory;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -39,6 +41,8 @@ class LoginUserControllerTest extends TestCase
                     'uuid',
                     'name',
                     'email',
+                    'isEmailVerified',
+                    'emailVerifiedAt',
                     'role' => ['uuid', 'slug', 'name', 'description'],
                     'workspaces' => [
                         '*' => [
@@ -169,6 +173,61 @@ class LoginUserControllerTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_unverified_user_can_login_and_receives_verification_flags(): void
+    {
+        UserFactory::new()->unverified()->create([
+            'email' => 'jane@example.com',
+            'password' => 'password1234',
+        ]);
+
+        $this
+            ->postJson('/api/v1/auth/login', [
+                'email' => 'jane@example.com',
+                'password' => 'password1234',
+            ])
+            ->assertOk()
+            ->assertJsonPath('user.isEmailVerified', false)
+            ->assertJsonPath('user.emailVerifiedAt', null);
+    }
+
+    public function test_unverified_user_login_sends_verification_notification(): void
+    {
+        Notification::fake();
+
+        $user = UserFactory::new()->unverified()->create([
+            'email' => 'jane@example.com',
+            'password' => 'password1234',
+        ]);
+
+        $this
+            ->postJson('/api/v1/auth/login', [
+                'email' => 'jane@example.com',
+                'password' => 'password1234',
+            ])
+            ->assertOk();
+
+        Notification::assertSentTo($user, VerifyEmail::class);
+    }
+
+    public function test_verified_user_login_does_not_send_verification_notification(): void
+    {
+        Notification::fake();
+
+        $user = UserFactory::new()->create([
+            'email' => 'jane@example.com',
+            'password' => 'password1234',
+        ]);
+
+        $this
+            ->postJson('/api/v1/auth/login', [
+                'email' => 'jane@example.com',
+                'password' => 'password1234',
+            ])
+            ->assertOk();
+
+        Notification::assertNotSentTo($user, VerifyEmail::class);
     }
 
     public function test_login_requires_email_and_password(): void
