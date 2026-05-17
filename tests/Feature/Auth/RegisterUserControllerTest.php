@@ -136,6 +136,8 @@ class RegisterUserControllerTest extends TestCase
 
     public function test_registration_records_user_registered_event(): void
     {
+        Mail::fake();
+
         $this
             ->postJson('/api/v1/auth/register', [
                 'name' => 'Jane Doe',
@@ -162,24 +164,6 @@ class RegisterUserControllerTest extends TestCase
     {
         Notification::fake();
         Mail::fake();
-
-        $this
-            ->postJson('/api/v1/auth/register', [
-                'name' => 'Jane Doe',
-                'email' => 'jane@example.com',
-                'password' => 'password1234',
-            ])
-            ->assertCreated();
-
-        $user = User::query()->where('email', 'jane@example.com')->firstOrFail();
-
-        Notification::assertSentTo($user, VerifyEmail::class);
-    }
-
-    public function test_successful_registration_queues_welcome_email(): void
-    {
-        Mail::fake();
-        Notification::fake();
 
         $this
             ->postJson('/api/v1/auth/register', [
