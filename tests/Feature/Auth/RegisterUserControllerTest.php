@@ -19,6 +19,8 @@ class RegisterUserControllerTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
+    private const VALID_PASSWORD = 'ValidPassw0rd!14';
+
     public function test_user_can_register_and_receives_token(): void
     {
         $creatorRole = Role::findBySlugOrFail(RoleSlug::CUSTOMER->value);
@@ -27,7 +29,7 @@ class RegisterUserControllerTest extends TestCase
             ->postJson('/api/v1/auth/register', [
                 'name' => 'Jane Doe',
                 'email' => 'jane@example.com',
-                'password' => 'password1234',
+                'password' => self::VALID_PASSWORD,
             ])
             ->assertCreated()
             ->assertJsonStructure([
@@ -88,7 +90,7 @@ class RegisterUserControllerTest extends TestCase
             ->postJson('/api/v1/auth/register', [
                 'name' => '   Jane    Doe   ',
                 'email' => '  JANE@EXAMPLE.COM  ',
-                'password' => 'password1234',
+                'password' => self::VALID_PASSWORD,
             ])
             ->assertCreated();
 
@@ -96,6 +98,18 @@ class RegisterUserControllerTest extends TestCase
             'name' => 'Jane Doe',
             'email' => 'jane@example.com',
         ]);
+    }
+
+    public function test_registration_rejects_weak_password(): void
+    {
+        $this
+            ->postJson('/api/v1/auth/register', [
+                'name' => 'Jane Doe',
+                'email' => 'jane@example.com',
+                'password' => 'password1234',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['password']);
     }
 
     public function test_registration_requires_unique_email(): void
@@ -108,7 +122,7 @@ class RegisterUserControllerTest extends TestCase
             ->postJson('/api/v1/auth/register', [
                 'name' => 'Jane Doe',
                 'email' => 'jane@example.com',
-                'password' => 'password1234',
+                'password' => self::VALID_PASSWORD,
             ])
             ->assertUnprocessable()
             ->assertJsonStructure([
@@ -126,7 +140,7 @@ class RegisterUserControllerTest extends TestCase
             ->postJson('/api/v1/auth/register', [
                 'name' => 'Jane Doe',
                 'email' => 'jane@example.com',
-                'password' => 'password1234',
+                'password' => self::VALID_PASSWORD,
             ])
             ->assertCreated();
 
@@ -171,7 +185,25 @@ class RegisterUserControllerTest extends TestCase
             ->postJson('/api/v1/auth/register', [
                 'name' => 'Jane Doe',
                 'email' => 'jane@example.com',
-                'password' => 'password1234',
+                'password' => self::VALID_PASSWORD,
+            ])
+            ->assertCreated();
+
+        $user = User::query()->where('email', 'jane@example.com')->firstOrFail();
+
+        Notification::assertSentTo($user, VerifyEmail::class);
+    }
+
+    public function test_successful_registration_queues_welcome_email(): void
+    {
+        Mail::fake();
+        Notification::fake();
+
+        $this
+            ->postJson('/api/v1/auth/register', [
+                'name' => 'Jane Doe',
+                'email' => 'jane@example.com',
+                'password' => self::VALID_PASSWORD,
             ])
             ->assertCreated();
 
@@ -194,7 +226,7 @@ class RegisterUserControllerTest extends TestCase
             ->postJson('/api/v1/auth/register', [
                 'name' => 'Jane Doe',
                 'email' => 'jane@example.com',
-                'password' => 'password1234',
+                'password' => self::VALID_PASSWORD,
             ])
             ->assertUnprocessable();
 
@@ -209,7 +241,7 @@ class RegisterUserControllerTest extends TestCase
             ->postJson('/api/v1/auth/register', [
                 'name' => 'Jane Doe',
                 'email' => 'jane@example.com',
-                'password' => 'password1234',
+                'password' => self::VALID_PASSWORD,
             ])
             ->assertUnprocessable();
 
@@ -234,7 +266,7 @@ class RegisterUserControllerTest extends TestCase
             json_encode([
                 'name' => 'Jane Doe',
                 'email' => 'jane@example.com',
-                'password' => 'password1234',
+                'password' => self::VALID_PASSWORD,
             ])
         );
 
