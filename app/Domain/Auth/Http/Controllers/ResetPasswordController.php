@@ -27,7 +27,6 @@ class ResetPasswordController
 
                 $user->save();
 
-                // TODO: Review and see if we need to record the password reset event.
                 Event::dispatch(new PasswordReset($user));
             },
         );

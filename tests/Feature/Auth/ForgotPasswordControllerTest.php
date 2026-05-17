@@ -26,7 +26,7 @@ class ForgotPasswordControllerTest extends TestCase
             ])
             ->assertOk()
             ->assertJson([
-                'message' => 'We have sent a email with a password reset link.',
+                'message' => 'We have sent an email with a password reset link.',
             ]);
 
         Notification::assertSentTo(
@@ -45,7 +45,7 @@ class ForgotPasswordControllerTest extends TestCase
             ])
             ->assertOk()
             ->assertJson([
-                'message' => 'We have sent a email with a password reset link.',
+                'message' => 'We have sent an email with a password reset link.',
             ]);
 
         Notification::assertNothingSent();

@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ForgotPasswordController
 {
-    private const GENERIC_SUCCESS_MESSAGE = 'We have sent a email with a password reset link.';
+    private const GENERIC_SUCCESS_MESSAGE = 'We have sent an email with a password reset link.';
 
     public function __invoke(ForgotPasswordRequest $request): JsonResponse
     {
