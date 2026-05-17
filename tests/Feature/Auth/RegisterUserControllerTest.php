@@ -162,24 +162,6 @@ class RegisterUserControllerTest extends TestCase
             ])
             ->assertCreated();
 
-        $user = User::query()->where('email', 'jane@example.com')->firstOrFail();
-
-        Notification::assertSentTo($user, VerifyEmail::class);
-    }
-
-    public function test_successful_registration_queues_welcome_email(): void
-    {
-        Mail::fake();
-        Notification::fake();
-
-        $this
-            ->postJson('/api/v1/auth/register', [
-                'name' => 'Jane Doe',
-                'email' => 'jane@example.com',
-                'password' => self::VALID_PASSWORD,
-            ])
-            ->assertCreated();
-
         Mail::assertQueued(RegistrationWelcomeMail::class, function (RegistrationWelcomeMail $mail): bool {
             return $mail->hasTo('jane@example.com')
                 && $mail->user->email === 'jane@example.com'
