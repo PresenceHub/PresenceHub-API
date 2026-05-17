@@ -2,7 +2,7 @@ name: PresenceHub-API
 
 # `api` + `postgres` + `nginx` share the `backend` bridge (no static IPs). Laravel reads `.env` from the bind mount; set DB_HOST=postgres in `.env` when using this stack.
 # Do not inject DB_* via Compose `env_file`/`environment` on `api`—that blocks `.env.testing` during `php artisan test` (Dotenv safeLoad).
-# External HTTP(S) is served by `nginx` on ports 80/443; `api` listens on 8000 inside the network only.
+# External HTTP(S) is served by `nginx` on ports 80/443 (proxy to `api:8000`). Host port 8000 is published for direct HTTP access to `api` when useful (for example tooling that targets `http://localhost:8000`).
 # If you still see errors mentioning 172.28.x.x or `db`, remove old networks: `docker compose down` then prune
 # unused networks in Docker Desktop, and ensure you are in this project directory when you run compose.
 
