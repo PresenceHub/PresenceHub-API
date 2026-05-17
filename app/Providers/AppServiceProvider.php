@@ -7,9 +7,11 @@ use App\Domain\Auth\Listeners\SendRegistrationWelcomeEmail;
 use App\Domain\Content\Models\Post;
 use App\Events\Contracts\ShouldBeRecorded;
 use App\Listeners\RecordEvent;
+use App\Models\User;
 use App\Models\Workspace;
 use App\Policies\PostPolicy;
 use App\Policies\WorkspacePolicy;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +36,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        ResetPassword::createUrlUsing(function (User $user, string $token): string {
+            $base = rtrim((string) config('app.frontend_url'), '/');
+
+            return $base.'/reset-password?'.http_build_query([
+                'token' => $token,
+                'email' => $user->getEmailForPasswordReset(),
+            ]);
+        });
+
         Gate::policy(Workspace::class, WorkspacePolicy::class);
         Gate::policy(Post::class, PostPolicy::class);
 

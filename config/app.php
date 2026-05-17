@@ -54,6 +54,11 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    /**
+     * Base URL of the SPA (password reset emails link here).
+     */
+    'frontend_url' => env('FRONTEND_APP_URL', 'http://localhost:3000'),
+
     'post_media_storage_path' => env('POST_MEDIA_STORAGE_PATH') ?: 'workspace/%s/media/posts',
 
     /*
