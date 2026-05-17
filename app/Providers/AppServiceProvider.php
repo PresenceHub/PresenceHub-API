@@ -7,9 +7,11 @@ use App\Domain\Auth\Listeners\SendRegistrationWelcomeEmail;
 use App\Domain\Content\Models\Post;
 use App\Events\Contracts\ShouldBeRecorded;
 use App\Listeners\RecordEvent;
+use App\Models\User;
 use App\Models\Workspace;
 use App\Policies\PostPolicy;
 use App\Policies\WorkspacePolicy;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -45,5 +47,14 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(ShouldBeRecorded::class, RecordEvent::class);
         Event::listen(UserRegistered::class, SendRegistrationWelcomeEmail::class);
+
+        ResetPassword::createUrlUsing(function (User $user, string $token): string {
+            $webUrl = rtrim((string) config('app.ph_web_url'), '/');
+
+            return $webUrl.'/reset-password?'.http_build_query([
+                'token' => $token,
+                'email' => $user->email,
+            ]);
+        });
     }
 }
